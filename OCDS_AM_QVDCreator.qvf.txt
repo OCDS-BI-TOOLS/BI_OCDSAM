@@ -1,0 +1,2874 @@
+////Main
+
+
+SET ThousandSep=' ';
+SET DecimalSep=',';
+SET MoneyThousandSep=' ';
+SET MoneyDecimalSep=',';
+SET MoneyFormat='# ##0,00 ₴;-# ##0,00 ₴';
+SET TimeFormat='hh:mm:ss';
+SET DateFormat='DD.MM.YYYY';
+SET TimestampFormat='DD.MM.YYYY hh:mm:ss[.fff]';
+SET FirstWeekDay=0;
+SET BrokenWeeks=1;
+SET ReferenceDay=0;
+SET FirstMonthOfYear=1;
+SET CollationLocale='ru-UA';
+SET CreateSearchIndexOnReload=1;
+SET MonthNames='янв.;февр.;мар.;апр.;мая;июн.;июл.;авг.;сент.;окт.;нояб.;дек.';
+SET LongMonthNames='январь;февраль;март;апрель;май;июнь;июль;август;сентябрь;октябрь;ноябрь;декабрь';
+SET DayNames='пн;вт;ср;чт;пт;сб;вс';
+SET LongDayNames='понедельник;вторник;среда;четверг;пятница;суббота;воскресенье';
+
+SET vBaseURL = '***'; //Prod
+SET vDateConvert = "TimeStamp(ConvertToLocalTime($1), '$(TimestampFormat)')";
+SET vConvertToDate = "Date(Floor(TimeStamp(ConvertToLocalTime($1), '$(TimestampFormat)')), '$(DateFormat)')";
+
+
+////Offset
+
+
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/OffsetTable.txt') ) THEN
+OffsetTable:
+LOAD uri
+FROM
+lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/OffsetTable.txt
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+LET vURL = Peek('uri', -1, 'OffsetTable');
+DROP Table OffsetTable;
+
+ELSE
+
+
+LET vURL = vBaseURL;
+ENDIF;
+
+
+
+SET RowsQtyTenderHeaders = 0;
+
+DO
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/OffsetTableALL.txt') ) THEN
+ADDOffsetTable:
+LOAD
+    offsetURI,
+    loadTime
+FROM [lib://ProZorroARMData/01_DataBase\02_QVD_DB\01_Dictionary\OffsetTableALL.txt]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+ELSE 
+ADDOffsetTable:
+load * inline [
+offsetURI, loadTime
+];
+ENDIF;
+
+TRACE;
+TRACE $(vURL);
+
+
+
+////RestConnectorMT 2.1
+
+
+LIB CONNECT TO 'ProZorro ARM';
+
+RestConnectorMasterTable:
+SQL SELECT 
+	"ocid" AS "ocid_u0",
+	"publishedDate",
+	"version",
+	"uri" AS "uri_u2",
+	"__KEY_root",
+	(SELECT 
+		"uri",
+		"__FK_next_page"
+	FROM "next_page" FK "__FK_next_page"),
+	(SELECT 
+		"name",
+		"__FK_publisher"
+	FROM "publisher" FK "__FK_publisher"),
+	(SELECT 
+		"ocid",
+		"id" AS "id_u33",
+		"date" AS "date_u2",
+		"initiationType",
+		"language",
+		"__KEY_releases",
+		"__FK_releases", //releases = done
+		(SELECT 
+			"@Value",
+			"__FK_tag"
+		FROM "tag" FK "__FK_tag" ArrayValueAlias "@Value"),
+		(SELECT 
+			"id",
+			"name" AS "name_u0",
+			"__FK_buyer"
+		FROM "buyer" FK "__FK_buyer"),
+		(SELECT 
+			"id" AS "id_u8",
+			"title" AS "title_u1",
+			"status" AS "status_u1",
+			"description" AS "description_u4",
+			"tenderId",
+			"awardCriteria",
+			"procurementMethod",
+			"procurementMethodDetails",
+			"procurementMethodRationale",
+			"submissionMethodDetails",
+			"mainProcurementCategory",
+			"hasEnquiries",
+			"numberOfTenderers",
+			"lastUpdateDate",
+			"announcementDate",
+            "datePublished" as "datePublished_t0",
+			"announcementType",
+			"procurementMethodDetails_hy" as "procurementMethodDetailsHy",
+			"procurementMethodDetails_ru" as "procurementMethodDetailsRu",
+			"biddersUnlawfulActionsDetails",
+			"complaintsDetails" AS "complainsDetails",
+			"tenderAdditionalInfo",
+			"__KEY_tender",
+			"__FK_tender",
+            (SELECT 
+				"@Value" AS "@Value_u1Tender",
+				"__FK_submissionMethodTender"
+			FROM "submissionMethod" FK "__FK_submissionMethodTender" ArrayValueAlias "@Value_u1Tender"),
+			(SELECT 
+				"durationInDays",
+				"endDate",
+				"startDate",
+				"__FK_awardPeriod"
+			FROM "awardPeriod" FK "__FK_awardPeriod"),
+			(SELECT 
+				"durationInDays" AS "durationInDays_u0",
+				"endDate" AS "endDate_u0",
+				"startDate" AS "startDate_u0",
+				"__FK_contractPeriod"
+			FROM "contractPeriod" FK "__FK_contractPeriod"),
+			(SELECT 
+				"@Value" AS "@Value_u0",
+				"__FK_documents"
+			FROM "documents" FK "__FK_documents" ArrayValueAlias "@Value_u0"),
+			(SELECT 
+				"durationInDays" AS "durationInDays_u1",
+				"endDate" AS "endDate_u1",
+				"startDate" AS "startDate_u1",
+				"__FK_enquiryPeriod"
+			FROM "enquiryPeriod" FK "__FK_enquiryPeriod"),
+			(SELECT 
+				"id" AS "id_u0",
+				"title",
+				"description",
+				"status",
+				"__KEY_lots",
+				"__FK_lots",
+				(SELECT 
+					"amount",
+					"currency",
+					"__FK_value"
+				FROM "value" FK "__FK_value")
+			FROM "lots" PK "__KEY_lots" FK "__FK_lots"),
+			(SELECT 
+				"id" AS "id_u4",
+				"planId",
+				"quantity",
+				"description" AS "description_u2",
+				"description_ru" AS "descriptionRu_u1",
+				"description_hy" AS "descriptionHy_u1",
+				"itemPosition",
+				"notAFM",
+				"relatedLot" as "relatedlot", //NEW
+				"__KEY_items",
+				"__FK_items",
+				(SELECT 
+					"id" AS "id_u1",
+					"scheme",
+					"description" AS "description_u0",
+					"description_ru" as "descriptionRu",
+					"description_hy" as "descriptionHy",
+					"__FK_additionalClassifications"
+				FROM "additionalClassifications" FK "__FK_additionalClassifications"),
+				(SELECT 
+					"id" AS "id_u2",
+					"scheme" AS "scheme_u0",
+					"description" AS "description_u1",
+					"description_ru" AS "descriptionRu_u0",
+					"description_hy" AS "descriptionHy_u0",
+					"__FK_classification"
+				FROM "classification" FK "__FK_classification"),
+				(SELECT 
+					"id" AS "id_u3",
+					"scheme" AS "scheme_u1",
+					"name" AS "name_u1",
+					"name_hy" as "nameHy",
+					"name_ru" as "nameRu",
+					"__KEY_unit",
+					"__FK_unit",
+					(SELECT 
+						"amount" AS "amount_u0",
+						"currency" AS "currency_u0",
+						"__FK_value_u0"
+					FROM "value" FK "__FK_value_u0")
+				FROM "unit" PK "__KEY_unit" FK "__FK_unit")
+			FROM "items" PK "__KEY_items" FK "__FK_items"),
+			(SELECT 
+				"id" AS "id_u5",
+				"name" AS "name_u2",
+				"__FK_procuringEntity"
+			FROM "procuringEntity" FK "__FK_procuringEntity"),
+			(SELECT 
+				"durationInDays" AS "durationInDays_u2",
+				"endDate" AS "endDate_u2",
+				"startDate" AS "startDate_u2",
+				"__FK_tenderPeriod"
+			FROM "tenderPeriod" FK "__FK_tenderPeriod"),
+			(SELECT 
+				"id" AS "id_u6",
+				"name" AS "name_u3",
+				"__FK_tenderers"
+			FROM "tenderers" FK "__FK_tenderers"),
+			(SELECT 
+				"amount" AS "amount_u1",
+				"currency" AS "currency_u1",
+				"__FK_value_u1"
+			FROM "value" FK "__FK_value_u1"),
+			(SELECT 
+				"endDate" AS "endDate_u3",
+				"startDate" AS "startDate_u3",
+				"__FK_qualificationPeriod"
+			FROM "qualificationPeriod" FK "__FK_qualificationPeriod"),
+			(SELECT 
+				"bidID",
+				"date",
+				"description" AS "description_u3",
+				"id" AS "id_u7",
+				"lotID",
+				"qualified",
+				"status" AS "status_u0",
+				"title" AS "title_u0",
+				"__FK_qualifications"
+			FROM "qualifications" FK "__FK_qualifications")
+		FROM "tender" PK "__KEY_tender" FK "__FK_tender"),
+		(SELECT 
+			"__KEY_bids",
+			"__FK_bids",
+			(SELECT 
+				"date" AS "date_u0",
+				"id" AS "id_u10",
+				"relatedLot",
+				"status" AS "status_u2",
+				"__KEY_details",
+				"__FK_details",
+				(SELECT 
+					"amount" AS "amount_u2",
+					"currency" AS "currency_u2",
+					"__FK_value_u2"
+				FROM "value" FK "__FK_value_u2"),
+				(SELECT 
+					"datePublished",
+					"documentType",
+					"format",
+					"url",
+					"__FK_documents_u0"
+				FROM "documents" FK "__FK_documents_u0"),
+				(SELECT 
+					"id" AS "id_u9",
+					"name" AS "name_u4",
+					"__FK_tenderers_u0"
+				FROM "tenderers" FK "__FK_tenderers_u0")
+			FROM "details" PK "__KEY_details" FK "__FK_details")
+		FROM "bids" PK "__KEY_bids" FK "__FK_bids"),
+		(SELECT 
+			"id" AS "id_u16",
+			"awardID",
+			"dateSigned",
+			"description" AS "description_u8",
+			"status" AS "status_u3",
+			"title" AS "title_u3",
+			"__KEY_contracts",
+			"__FK_contracts",
+			(SELECT 
+				"description" AS "description_u7",
+				"description_ru" AS "descriptionRu_u4",
+				"description_hy" AS "descriptionHy_u4",
+				"id" AS "id_u14",
+				"itemPosition" AS "itemPosition_u0",
+				"quantity" AS "quantity_u0",
+				"notAFM" AS "notAFM_u0",
+				"relatedLot" AS "relatedlot_u0", //NEW
+				"__KEY_items_u0",
+				"__FK_items_u0",
+				(SELECT 
+					"description" AS "description_u5",
+					"description_ru" AS "descriptionRu_u2",
+					"description_hy" AS "descriptionHy_u2",
+					"id" AS "id_u11",
+					"scheme" AS "scheme_u2",
+					"__FK_additionalClassifications_u0"
+				FROM "additionalClassifications" FK "__FK_additionalClassifications_u0"),
+				(SELECT 
+					"description" AS "description_u6",
+					"description_ru" AS "descriptionRu_u3",
+					"description_hy" AS "descriptionHy_u3",
+					"id" AS "id_u12",
+					"scheme" AS "scheme_u3",
+					"__FK_classification_u0"
+				FROM "classification" FK "__FK_classification_u0"),
+				(SELECT 
+					"id" AS "id_u13",
+					"name" AS "name_u5",
+					"name_hy" AS "nameHy_u0",
+					"name_ru" AS "nameRu_u0",
+					"scheme" AS "scheme_u4",
+					"__KEY_unit_u0",
+					"__FK_unit_u0",
+					(SELECT 
+						"amount" AS "amount_u3",
+						"currency" AS "currency_u3",
+						"__FK_value_u3"
+					FROM "value" FK "__FK_value_u3")
+				FROM "unit" PK "__KEY_unit_u0" FK "__FK_unit_u0")
+			FROM "items" PK "__KEY_items_u0" FK "__FK_items_u0"),
+			(SELECT 
+				"amount" AS "amount_u4",
+				"currency" AS "currency_u4",
+				"__FK_value_u4"
+			FROM "value" FK "__FK_value_u4"),
+			(SELECT 
+				"durationInDays" AS "durationInDays_u3",
+				"endDate" AS "endDate_u4",
+				"startDate" AS "startDate_u4",
+				"__FK_period"
+			FROM "period" FK "__FK_period"),
+			(SELECT 
+				"documentType" AS "documentType_u0",
+				"format" AS "format_u0",
+				"id" AS "id_u15",
+				"title" AS "title_u2",
+				"url" AS "url_u0",
+				"__FK_documents_u1"
+			FROM "documents" FK "__FK_documents_u1")
+		FROM "contracts" PK "__KEY_contracts" FK "__FK_contracts"),
+		(SELECT 
+			"id" AS "id_u23",
+			"planID",
+			"notAFM" AS "notAFM_u2",
+			"budgetYear",
+			"__KEY_plannings" as "__KEY_plannings",
+			"__FK_plannings" as "__FK_plannings",
+			(SELECT 
+				"id" AS "id_u17",
+				"project",
+				"projectID",
+				"description" AS "description_u9",
+				"description_ru" AS "descriptionRu_u5",
+				"description_hy" AS "descriptionHy_u5",
+				"IBAN",
+				"budgetType",
+				"__KEY_budget",
+				"__FK_budget",
+				(SELECT 
+					"amount" AS "amount_u5",
+					"currency" AS "currency_u5",
+					"__FK_amount"
+				FROM "amount" FK "__FK_amount")
+			FROM "budget" PK "__KEY_budget" FK "__FK_budget"),
+			(SELECT 
+				"awardCriteria" AS "awardCriteria_u0",
+				"procurementMethod" AS "procurementMethod_u0",
+				"additionalProcurementCategories",
+				"procurementMethodDetails" AS "procurementMethodDetails_u0",
+				"procurementMethodDetails_ru" AS "procurementMethodDetailsRu_u0",
+				"procurementMethodDetails_hy" AS "procurementMethodDetailsHy_u0",
+				"__KEY_tender_u0",
+				"__FK_tender_u0",
+                (SELECT 
+					"@Value" AS "@Value_u3Plannings",
+					"__FK_submissionMethod_u0Plannings"
+				FROM "submissionMethod" FK "__FK_submissionMethod_u0Plannings" ArrayValueAlias "@Value_u3Plannings"),
+				(SELECT 
+					"description" AS "description_u12",
+					"id" AS "id_u21",
+					"quantity" AS "quantity_u1",
+					"quantityInitial",
+					"quantityAmended",
+					"quantityBlockedByTender",
+					"unitPrice",
+					"notAFM" AS "notAFM_u1",
+					"__KEY_items_u1",
+					"__FK_items_u1",
+					(SELECT 
+						"id" AS "id_u18",
+						"name" AS "name_u6",
+						"name_hy",
+						"name_ru",
+						"scheme" AS "scheme_u5",
+						"__KEY_unit_u1",
+						"__FK_unit_u1",
+						(SELECT 
+							"amount" AS "amount_u6",
+							"currency" AS "currency_u6",
+							"__FK_value_u5"
+						FROM "value" FK "__FK_value_u5")
+					FROM "unit" PK "__KEY_unit_u1" FK "__FK_unit_u1"),
+					(SELECT 
+						"id" AS "id_u19",
+						"scheme" AS "scheme_u6",
+						"description" AS "description_u10",
+						"description_ru" AS "descriptionRu_u6",
+						"description_hy" AS "descriptionHy_u6",
+						"__FK_classification_u1"
+					FROM "classification" FK "__FK_classification_u1"),
+					(SELECT 
+						"id" AS "id_u20",
+						"scheme" AS "scheme_u7",
+						"description" AS "description_u11",
+						"description_ru" AS "descriptionRu_u7",
+						"description_hy" AS "descriptionHy_u7",
+						"__FK_additionalClassifications_u1"
+					FROM "additionalClassifications" FK "__FK_additionalClassifications_u1")
+				FROM "items" PK "__KEY_items_u1" FK "__FK_items_u1"),
+				(SELECT 
+					"durationInDays" AS "durationInDays_u4",
+					"endDate" AS "endDate_u5",
+					"startDate" AS "startDate_u5",
+					"__FK_awardPeriod_u0"
+				FROM "awardPeriod" FK "__FK_awardPeriod_u0"),
+				(SELECT 
+					"durationInDays" AS "durationInDays_u5",
+					"endDate" AS "endDate_u6",
+					"startDate" AS "startDate_u6",
+					"__FK_contractPeriod_u0"
+				FROM "contractPeriod" FK "__FK_contractPeriod_u0"),
+				(SELECT 
+					"durationInDays" AS "durationInDays_u6",
+					"endDate" AS "endDate_u7",
+					"startDate" AS "startDate_u7",
+					"__FK_enquiryPeriod_u0"
+				FROM "enquiryPeriod" FK "__FK_enquiryPeriod_u0"),
+				(SELECT 
+					"durationInDays" AS "durationInDays_u7",
+					"endDate" AS "endDate_u8",
+					"startDate" AS "startDate_u8",
+					"__FK_tenderPeriod_u0"
+				FROM "tenderPeriod" FK "__FK_tenderPeriod_u0"),
+				(SELECT 
+					"name" AS "name_u7",
+					"id" AS "id_u22",
+					"__FK_procuringEntity_u0"
+				FROM "procuringEntity" FK "__FK_procuringEntity_u0"),
+				(SELECT 
+					"amount" AS "amount_u7",
+					"currency" AS "currency_u7",
+					"__FK_value_u6"
+				FROM "value" FK "__FK_value_u6"),
+				(SELECT 
+					"amount" AS "amount_u8",
+					"currency" AS "currency_u8",
+					"__FK_initialValue"
+				FROM "initialValue" FK "__FK_initialValue"),
+				(SELECT 
+					"amount" AS "amount_u9",
+					"currency" AS "currency_u9",
+					"__FK_amendedValue"
+				FROM "amendedValue" FK "__FK_amendedValue"),
+				(SELECT 
+					"amount" AS "amount_u10",
+					"currency" AS "currency_u10",
+					"__FK_blockedByTenderValue"
+				FROM "blockedByTenderValue" FK "__FK_blockedByTenderValue"),
+				(SELECT 
+					"amount" AS "amount_u11",
+					"currency" AS "currency_u11",
+					"__FK_savedFromContractValue"
+				FROM "savedFromContractValue" FK "__FK_savedFromContractValue")
+			FROM "tender" PK "__KEY_tender_u0" FK "__FK_tender_u0")
+		FROM "planning" PK "__KEY_plannings" FK "__FK_plannings"),
+		(SELECT 
+			"id" AS "id_u26",
+			"name" AS "name_u8",
+			"name_ru" AS "nameRu_u1",
+			"name_hy" AS "nameHy_u1",
+			"_id",
+			"__KEY_parties",
+			"__FK_parties",
+			(SELECT 
+				"id" AS "id_u24",
+				"legalName",
+				"legalName_ru" as "legalNameRu",
+				"legalName_hy" as "legalNameHy",
+				"scheme" AS "scheme_u8",
+				"uri" AS "uri_u0",
+				"__FK_identifier"
+			FROM "identifier" FK "__FK_identifier"),
+			(SELECT 
+				"id" AS "id_u25",
+				"legalName" AS "legalName_u0",
+				"legalName_ru" AS "legalNameRu_u0",
+				"legalName_hy" AS "legalNameHy_u0",
+				"scheme" AS "scheme_u9",
+				"__FK_additionalIdentifiers"
+			FROM "additionalIdentifiers" FK "__FK_additionalIdentifiers"),
+			(SELECT 
+				"countryName",
+				"locality",
+				"postalCode",
+				"streetAddress",
+				"__FK_address"
+			FROM "address" FK "__FK_address"),
+			(SELECT 
+				"email",
+				"faxNumber",
+				"telephone",
+				"url" AS "uri_u1",
+				"__FK_contactPoint"
+			FROM "contactPoint" FK "__FK_contactPoint"),
+			(SELECT 
+				"financedByBudget",
+				"departmentalCode",
+				"__FK_details_u0"
+			FROM "details" FK "__FK_details_u0"),
+			(SELECT 
+				"@Value" AS "@Value_u1",
+				"__FK_roles"
+			FROM "roles" FK "__FK_roles" ArrayValueAlias "@Value_u1")
+		FROM "parties" PK "__KEY_parties" FK "__FK_parties"),
+		(SELECT 
+			"id" AS "id_u32",
+			"date" AS "date_u1",
+			"status" AS "status_u4",
+			"__KEY_awards",
+			"__FK_awards",
+			(SELECT 
+				"durationInDays" AS "durationInDays_u8",
+				"endDate" AS "endDate_u9",
+				"startDate" AS "startDate_u9",
+				"__FK_contractPeriod_u1"
+			FROM "contractPeriod" FK "__FK_contractPeriod_u1"),
+			(SELECT 
+				"amount" AS "amount_u12",
+				"currency" AS "currency_u12",
+				"__FK_value_u7"
+			FROM "value" FK "__FK_value_u7"),
+            (SELECT 
+				"@Value" AS "@Value_uRelatedLots",
+				"__FK_relatedLots"
+			FROM "relatedLots" FK "__FK_relatedLots" ArrayValueAlias "@Value_uRelatedLots"),
+			(SELECT 
+				"id" AS "id_u27",
+				"name" AS "name_u9",
+				"__FK_suppliers"
+			FROM "suppliers" FK "__FK_suppliers"),
+			(SELECT 
+				"id" AS "id_u31",
+				"quantity" AS "quantity_u2",
+				"description" AS "description_u15",
+				"description_ru" AS "descriptionRu_u10",
+				"description_hy" AS "descriptionHy_u10",
+				"itemPosition" AS "itemPosition_u1",
+				"notAFM" AS "notAFM_u3",
+				"relatedLot" AS "relatedlot_u1",
+				"__KEY_items_u2",
+				"__FK_items_u2",
+				(SELECT 
+					"id" AS "id_u28",
+					"scheme" AS "scheme_u10",
+					"description" AS "description_u13",
+					"description_ru" AS "descriptionRu_u8",
+					"description_hy" AS "descriptionHy_u8",
+					"__FK_additionalClassifications_u2"
+				FROM "additionalClassifications" FK "__FK_additionalClassifications_u2"),
+				(SELECT 
+					"id" AS "id_u29",
+					"scheme" AS "scheme_u11",
+					"description" AS "description_u14",
+					"description_ru" AS "descriptionRu_u9",
+					"description_hy" AS "descriptionHy_u9",
+					"__FK_classification_u2"
+				FROM "classification" FK "__FK_classification_u2"),
+				(SELECT 
+					"id" AS "id_u30",
+					"scheme" AS "scheme_u12",
+					"name" AS "name_u10",
+					"name_hy" AS "nameHy_u2",
+					"name_ru" AS "nameRu_u2",
+					"__KEY_unit_u2",
+					"__FK_unit_u2",
+					(SELECT 
+						"amount" AS "amount_u13",
+						"currency" AS "currency_u13",
+						"__FK_value_u8"
+					FROM "value" FK "__FK_value_u8")
+				FROM "unit" PK "__KEY_unit_u2" FK "__FK_unit_u2")
+			FROM "items" PK "__KEY_items_u2" FK "__FK_items_u2")
+		FROM "awards" PK "__KEY_awards" FK "__FK_awards")
+	FROM "releases" PK "__KEY_releases" FK "__FK_releases")
+FROM JSON (wrap on) "root" PK "__KEY_root"
+WITH CONNECTION(URL "$(vURL)");
+
+
+
+////StoreToQVD 2.0
+
+
+
+store RestConnectorMasterTable into lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/RestConnector.qvd (qvd);
+ 
+//----start releases
+
+[releases]:
+LOAD	[ocid] AS [ocid],
+	[id_u33] AS [id_u44],
+    [id_u33] as IDReleaseOrig,
+	$(vConvertToDate([date_u2])) AS [releases_date],
+	[initiationType] AS [releases_initiationType],
+	[language] AS [releases_language],
+	[__KEY_releases] AS [__KEY_releases],
+//	[__FK_releases] AS [__KEY_root]
+    '$(vURL)' as OffsetURL
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_releases]);
+
+LET RowsQtyTenderHeaders = NoOfRows('releases');
+
+
+left join (releases)
+LOAD	[@Value] AS [tags],
+	[__FK_tag] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tag]);
+
+left join (releases)
+LOAD	[id_u8] AS [IDTenderOrig],
+		[__FK_tender] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tender]);
+
+drop field [__KEY_releases] from releases;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/releases.qvd')) THEN
+Concatenate (releases)
+load [ocid],
+	[id_u44],
+    IDReleaseOrig,
+	[releases_date],
+	[releases_initiationType],
+	[releases_language],
+    [tags],
+    OffsetURL,
+    IDTenderOrig
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/releases.qvd (qvd)
+where not exists (IDTenderOrig);
+ENDIF;
+
+Store releases into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/releases.qvd (qvd);
+Drop table releases; 
+
+//----end releases
+
+
+//----tender
+[tender]:
+LOAD	[id_u8] AS [id_u12],
+    [id_u8] as IDTenderOrig,
+    [id_u8] as IDTender,
+	[title_u1] AS [tender_title],
+	[status_u1] AS [tender_status],
+	[description_u4] AS [tender_description],
+	[tenderId] AS [tender_tenderId],
+	[awardCriteria] AS [tender_awardCriteria],
+	[procurementMethod] AS [tender_procurementMethod],
+    if(procurementMethod = 'open' or procurementMethod = 'selective', 1, 0) as tender_is_competitive,
+	[procurementMethodDetails] AS [tender_procurementMethodDetails],
+	[procurementMethodRationale] AS [tender_procurementMethodRationale],
+	[submissionMethodDetails] AS [tender_submissionMethodDetails],
+	[mainProcurementCategory] AS [tender_mainProcurementCategory],
+	[hasEnquiries] AS [tender_hasEnquiries],
+	[numberOfTenderers] AS [tender_numberOfTenderers],
+	$(vConvertToDate([lastUpdateDate])) AS [tender_lastUpdateDate],
+	$(vConvertToDate([announcementDate])) AS [tender_announcementDate],
+    $(vConvertToDate(datePublished_t0)) as [tender_datePublished],
+	[announcementType] AS [tender_announcementType],
+	[procurementMethodDetailsHy] AS [tender_procurementMethodDetailsHy],
+	[procurementMethodDetailsRu] AS [tender_procurementMethodDetailsRu],
+	[biddersUnlawfulActionsDetails] AS [tender_biddersUnlawfulActionsDetails],
+	[complainsDetails] AS [tender_complaintsDetails],
+	[tenderAdditionalInfo] AS [tender_tenderAdditionalInfo],
+	[__KEY_tender] AS [__KEY_tender],
+	[__FK_tender] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tender]);
+
+left join (tender)
+LOAD	[@Value_u1Tender] AS [tender_submissionMethod],
+	[__FK_submissionMethodTender] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_submissionMethodTender]);
+
+left join(tender)
+LOAD
+    [id_u33] as IDReleaseOrig,
+	[__KEY_releases] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_releases]);
+
+left join (tender)
+LOAD	[durationInDays] AS [tender_awardPeriod_durationInDays],
+	$(vConvertToDate([endDate])) AS [tender_awardPeriod_endDate],
+	$(vConvertToDate([startDate])) AS [tender_awardPeriod_startDate],
+	[__FK_awardPeriod] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_awardPeriod]);
+
+left join (tender)
+LOAD	[durationInDays_u0] AS [tender_contractPeriod_durationInDays],
+	$(vConvertToDate([endDate_u0])) AS [tender_contractPeriod_endDate],
+	$(vConvertToDate([startDate_u0])) AS [tender_contractPeriod_startDate],
+	[__FK_contractPeriod] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_contractPeriod]);
+
+left join (tender)
+LOAD	[durationInDays_u1] AS [tender_enquiryPeriod_durationInDays],
+	$(vConvertToDate([endDate_u1])) AS [tender_enquiryPeriod_endDate],
+	$(vConvertToDate([startDate_u1])) AS [tender_enquiryPeriod_startDate],
+	[__FK_enquiryPeriod] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_enquiryPeriod]);
+
+left join (tender)
+LOAD	[durationInDays_u2] AS [tender_tenderPeriod_durationInDays],
+	$(vConvertToDate([endDate_u2])) AS [tender_tenderPeriod_endDate],
+	$(vConvertToDate([startDate_u2])) AS [tender_tenderPeriod_startDate],
+	[__FK_tenderPeriod] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tenderPeriod]);
+
+left join (tender)
+LOAD	$(vConvertToDate([endDate_u3])) AS [tender_qualificationPeriod_endDate],
+	$(vConvertToDate([startDate_u3])) AS [tender_qualificationPeriod_startDate],
+	[__FK_qualificationPeriod] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_qualificationPeriod]);
+
+left join (tender) //art join for key
+LOAD	[id] AS [IDbuyer],
+		[__FK_buyer] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_buyer]);
+
+left join (tender) //art join for key
+LOAD	[id_u5] AS [IDOrganizer],
+		[__FK_procuringEntity] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_procuringEntity]);
+
+left join(tender)
+LOAD	[@Value_u0] AS [tender_documents],
+	[__FK_documents] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_documents]);
+
+left join(tender)
+LOAD	[amount_u1] AS [tender_amount],
+	[currency_u1] AS [tender_currency],
+	[__FK_value_u1] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_value_u1]);
+
+//alternate count of bidders per tender
+
+bids_tmp:
+LOAD
+    [id_u10] as IDBidOrig,
+	[__FK_details] AS [__KEY_bids]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_details]);
+
+left join (bids_tmp)
+LOAD	[__KEY_bids] AS [__KEY_bids],
+	[__FK_bids] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_bids]);
+
+left join(tender)
+load Distinct 
+	 count(IDBidOrig) as tender_numberOfBids,
+     [__KEY_releases]
+Resident bids_tmp
+group by [__KEY_releases]
+;
+
+drop table bids_tmp; 
+
+drop field [__KEY_tender],[__KEY_releases] from tender;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/tender.qvd') ) then 
+Concatenate (tender)
+load 
+	[id_u12],
+    IDTenderOrig,
+	[tender_tenderId],
+	[tender_lastUpdateDate],
+	[tender_announcementDate],
+    [tender_datePublished],
+	[tender_announcementType],
+	[tender_title],
+	[tender_status],
+	[tender_awardCriteria],
+	[tender_submissionMethod],
+	[tender_hasEnquiries],
+	[tender_procurementMethod],
+	[tender_submissionMethodDetails],
+	[tender_mainProcurementCategory],
+	[tender_description],
+	[tender_procurementMethodDetails],
+	[tender_procurementMethodDetailsHy],
+	[tender_procurementMethodDetailsRu],
+	[tender_procurementMethodRationale],
+	[tender_biddersUnlawfulActionsDetails],
+	[tender_complaintsDetails],
+	[tender_tenderAdditionalInfo],
+	[tender_numberOfTenderers],
+    tender_numberOfBids,
+    [IDReleaseOrig],
+    [tender_tenderPeriod_durationInDays],
+	[tender_tenderPeriod_endDate],
+	[tender_tenderPeriod_startDate],
+	[tender_contractPeriod_durationInDays],
+	[tender_contractPeriod_endDate],
+	[tender_contractPeriod_startDate],
+	[tender_enquiryPeriod_durationInDays],
+	[tender_enquiryPeriod_endDate],
+	[tender_enquiryPeriod_startDate],
+	[tender_awardPeriod_durationInDays],
+	[tender_awardPeriod_endDate],
+	[tender_awardPeriod_startDate],
+    [tender_qualificationPeriod_endDate],
+	[tender_qualificationPeriod_startDate],
+	tender_documents,
+    IDOrganizer,
+    IDbuyer,
+    [tender_amount],
+	[tender_currency],
+    tender_is_competitive
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/tender.qvd (qvd)
+WHERE NOT EXISTS(IDTender, IDTenderOrig)
+;
+ENDIF;
+
+drop field IDTender from tender;
+
+Store tender into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/tender.qvd (qvd);
+Drop table tender; 
+
+//----end tender
+
+
+//--tender:items
+[items]:
+LOAD	[id_u4] AS [id_u8],
+	[id_u4] AS [IDTenderItems],
+    [id_u4] AS [IDTenderItemsOrig],
+	[planId] AS [tender_item_planId],
+	[quantity] AS [tender_item_quantity], 
+	[description_u2] AS [tender_item_description],
+	[descriptionRu_u1] AS [tender_item_descriptionRu],
+	[descriptionHy_u1] AS [tender_item_descriptionHy],
+	[itemPosition] AS [tender_item_itemPosition],
+	[notAFM] AS [tender_item_notAFM],
+	[relatedlot] AS [tender_item_relatedlot],
+	[__KEY_items] AS [__KEY_items],
+	[__FK_items] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_items]);
+
+left join (items) 
+LOAD
+	[id_u8] AS [IDTenderOrig],
+    [id_u8] as IDTender,
+	[__KEY_tender] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tender]);
+
+left join (items) 
+LOAD	[id_u2] AS [IDCPV],
+	[scheme_u0] AS [tender_item_scheme_CPV],
+	[description_u1] AS [tender_item_description_CPV],
+	[descriptionRu_u0] AS [tender_item_description_CPVRu], 
+	[descriptionHy_u0] AS [tender_item_description_CPVHy], 
+	[__FK_classification] AS [__KEY_items]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_classification]);
+
+left join (items) 
+LOAD	[id_u1] AS [IDCPV_AM],
+	[scheme] AS [tender_item_scheme_CPV_AM],
+	[description_u0] AS [tender_item_description_CPV_AM],
+	[descriptionRu] AS [tender_item_description_CPV_AMRu], 
+	[descriptionHy] AS [tender_item_description_CPV_AMHy],
+	[__FK_additionalClassifications] AS [__KEY_items]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_additionalClassifications]);
+
+[unit]:
+LOAD	[id_u3] AS [tender_item_unit_id],
+	[scheme_u1] AS [tender_item_unit_scheme],
+	[name_u1] AS [tender_item_unit_name],
+	[nameHy] AS [tender_item_unit_nameHy],
+	[nameRu] AS [tender_item_unit_nameRu],
+	[__KEY_unit] AS [__KEY_unit],
+	[__FK_unit] AS [__KEY_items]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_unit]);
+
+left join (unit)
+LOAD	[amount_u0] AS [tender_item_unit_amount],
+	[currency_u0] AS [tender_item_unit_currency],
+	[__FK_value_u0] AS [__KEY_unit]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_value_u0]);
+
+left join (items)
+load * 
+Resident unit;
+
+drop table unit;
+
+bids_tmp: //number of bids per item
+LOAD	
+	[id_u10] AS [IDBidOrig],
+	[relatedLot] AS [IDTenderItemsOrig]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_details]);
+
+left join(items)
+load Distinct 
+	 count(IDBidOrig) as tender_item_numberOfBids,
+     [IDTenderItemsOrig]
+Resident bids_tmp
+group by [IDTenderItemsOrig]
+;
+
+drop table bids_tmp; 
+
+drop fields [__KEY_unit], [__KEY_items], [__KEY_tender] from items;
+
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/tender_items.qvd') ) THEN
+Concatenate (items)
+load [id_u8],
+	[tender_item_planId],
+	[tender_item_description],
+	[tender_item_descriptionRu],
+	[tender_item_descriptionHy],
+	[tender_item_itemPosition],
+	[tender_item_quantity],
+    [tender_item_notAFM],
+	[tender_item_relatedlot],
+	[IDTenderOrig],
+    IDTenderItemsOrig,
+    tender_item_numberOfBids,
+	[tender_item_description_CPV_AM],
+    [tender_item_description_CPV_AMRu],
+	[tender_item_description_CPV_AMHy],
+	IDCPV_AM,
+	[tender_item_scheme_CPV_AM],
+    [tender_item_description_CPV],
+	[tender_item_description_CPVRu], 
+	[tender_item_description_CPVHy], 
+	IDCPV,
+	[tender_item_scheme_CPV],
+    [tender_item_unit_id],
+	[tender_item_unit_name],
+	[tender_item_unit_nameHy],
+	[tender_item_unit_nameRu],
+	[tender_item_unit_scheme],
+	[tender_item_unit_amount],
+	[tender_item_unit_currency]
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/tender_items.qvd (qvd)
+where NOT Exists(IDTenderItems, IDTenderItemsOrig);
+;
+ENDIF;
+
+drop field IDTender, IDTenderItems from items;
+
+Store items into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/tender_items.qvd (qvd);
+Drop table items;
+
+//--end tender:item
+
+
+
+
+
+
+//--tender:lots 
+
+[lots]:
+LOAD	[id_u0] AS [IDTenderLots],
+	[id_u0] AS [IDTenderLotsOrig],
+	[title] AS [tender_lot_title],
+	[description] AS [tender_lot_description],
+	[status] AS [tender_lot_status],
+	[__KEY_lots] AS [__KEY_lots],
+	[__FK_lots] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_lots]);
+
+left join(lots)
+LOAD	[amount] AS [tender_lot_amount],
+	[currency] AS [tender_lot_currency],
+	[__FK_value] AS [__KEY_lots]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_value]);
+
+left join (lots) 
+LOAD
+	[id_u8] AS [IDTenderOrig],
+    [id_u8] as IDTender,
+	[__KEY_tender] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tender]);
+
+drop fields [__KEY_lots], [__KEY_tender] from lots;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/tender_lots.qvd')) THEN
+Concatenate (lots)
+load [IDTenderLotsOrig],
+ 	 [tender_lot_title],
+	 [tender_lot_description],
+	 [tender_lot_status],
+     [tender_lot_amount],
+	 [tender_lot_currency],
+     [IDTenderOrig]
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/tender_lots.qvd (qvd)
+where NOT Exists(IDTenderLots, IDTenderLotsOrig);
+;
+ENDIF;
+
+drop field IDTender, IDTenderLots from lots;
+
+Store lots into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/tender_lots.qvd (qvd);
+Drop table lots;
+
+//--end tender:lots
+
+
+
+
+
+//--tender:qualifications 
+
+[qualifications]:
+LOAD	[bidID] AS [tender_qualification_bidID],
+	$(vConvertToDate([date])) AS [tender_qualification_date],
+	[description_u3] AS [tender_qualification_description],
+	[id_u7] AS [IDQualification],
+    [id_u7] AS [IDQualificationOrig],
+	[lotID] AS [tender_qualification_lotID],
+	[qualified] AS [tender_qualification_qualified],
+	[status_u0] AS [tender_qualification_status],
+	[title_u0] AS [tender_qualification_title],
+	[__FK_qualifications] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_qualifications]);
+
+left join (qualifications) 
+LOAD
+	[id_u8] AS [IDTenderOrig],
+    [id_u8] as IDTender,
+	[__KEY_tender] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tender]);
+
+drop fields [__KEY_tender] from qualifications;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/tender_qualifications.qvd')) THEN
+Concatenate (qualifications)
+load [tender_qualification_bidID],
+	[tender_qualification_date],
+	[tender_qualification_description],
+    [IDQualificationOrig],
+	[tender_qualification_lotID],
+	[tender_qualification_qualified],
+	[tender_qualification_status],
+	[tender_qualification_title],
+    [IDTenderOrig]
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/tender_qualifications.qvd (qvd)
+where NOT Exists(IDQualification, IDQualificationOrig);
+;
+ENDIF;
+
+drop field IDTender, IDQualification from qualifications;
+
+Store qualifications into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/tender_qualifications.qvd (qvd);
+Drop table qualifications;
+
+//--end qualifications
+
+
+
+
+//--tender:tenderers
+
+[tender_tenderers]:
+LOAD	
+	Distinct //can be more than one tenderer with same [__FK_tenderers]
+	[id_u6] AS [IDtenderer_tender],
+	[name_u3] AS [tender_tenderer_name],
+	[__FK_tenderers] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tenderers]);
+
+left join(tender_tenderers)
+LOAD	
+    [id_u8] as IDTenderOrig,
+	[__KEY_tender] AS [__KEY_tender]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tender]);
+
+drop field [__KEY_tender] from tender_tenderers;
+
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/tender_tenderers.qvd') ) then 
+Concatenate (tender_tenderers) 
+load IDtenderer_tender,
+	 tender_tenderer_name,
+     IDTenderOrig
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/tender_tenderers.qvd (qvd);
+ENDIF;
+
+
+Store tender_tenderers into lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/tender_tenderers.qvd (qvd);
+Drop table tender_tenderers;   
+
+//--end tender:tenderers
+
+
+
+
+
+
+
+//----bids
+[bids_details]:
+LOAD	$(vConvertToDate([date_u0])) AS [bids_date],
+	[id_u10] AS [id_u16],
+    [id_u10] as IDBidOrig,
+    [id_u10] as IDBid,
+	[relatedLot] AS [bids_relatedLot],
+	[status_u2] AS [bids_status],
+	[__KEY_details] AS [__KEY_details],
+	[__FK_details] AS [__KEY_bids]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_details]);
+
+left join (bids_details)
+LOAD Distinct //пcan be more than one tenderer with the same __FK_tenderers_u0	
+	 [id_u9] AS [IDtenderers_bids],
+	[__FK_tenderers_u0] AS [__KEY_details]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tenderers_u0]);
+
+left join (bids_details)
+LOAD	[amount_u2] AS [bids_amount],
+	[currency_u2] AS [bids_currency],
+	[__FK_value_u2] AS [__KEY_details]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_value_u2]);
+
+left join (bids_details)
+LOAD	[__KEY_bids] AS [__KEY_bids],
+	[__FK_bids] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_bids]);
+
+left join (bids_details)
+load 
+	[id_u33] AS [IDReleaseOrig],
+	[__KEY_releases] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_releases]);
+
+left join (bids_details)
+load 
+    [id_u8] as IDTenderOrig,
+	[__FK_tender] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tender]);
+
+drop fields [__KEY_details], [__KEY_bids], [__KEY_releases] from bids_details;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/bids.qvd') ) THEN
+Concatenate (bids_details)
+load [bids_date],
+	[id_u16],
+    IDBidOrig,
+	[bids_relatedLot],
+	[bids_status],
+    IDtenderers_bids,
+ 	[bids_amount],
+	[bids_currency],
+	IDReleaseOrig,
+    IDTenderOrig
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/bids.qvd (qvd)
+where not exists (IDBid, IDBidOrig)
+;
+ENDIF;
+
+drop field IDBid from bids_details;
+
+Store bids_details into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/bids.qvd (qvd);
+Drop table bids_details;
+
+//--end bids
+
+
+
+
+
+//--bids documents
+
+
+[documents_bids]:
+LOAD	$(vConvertToDate([datePublished])) AS [bids_documents_datebublished],
+	[documentType] AS [bids_documents_documentType], //
+	[format] AS [bids_documents_format],
+	[url] AS [bids_documents_url],
+	[__FK_documents_u0] AS [__KEY_details]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_documents_u0]);
+
+//[bids_details]:
+left join (documents_bids)
+LOAD
+    [id_u10] as IDBidOrig,
+    [id_u10] as IDBid,
+	[__KEY_details] AS [__KEY_details]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_details]);
+
+drop field [__KEY_details] from documents_bids;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/bids_documents.qvd') ) THEN
+Concatenate (documents_bids)
+LOAD	[bids_documents_datebublished],
+	[bids_documents_format],
+    bids_documents_documentType,
+	[bids_documents_url],
+    IDBidOrig
+From lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/bids_documents.qvd (qvd)
+where not exists(IDBid, IDBidOrig)
+;
+ENDIF;
+
+drop field IDBid from documents_bids;
+
+Store documents_bids into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/bids_documents.qvd (qvd);
+Drop table documents_bids;
+
+
+//--end bids:documents
+
+
+
+
+//----contracts:items
+
+[contracts]:
+LOAD	[id_u16] AS [id_u25],
+    [id_u16] AS [IDContractOrig],
+    [id_u16] AS [IDContract],
+	[awardID] AS [contracts_awardID],
+	$(vConvertToDate([dateSigned])) AS [contracts_dateSigned],
+	[description_u8] AS [contracts_description],
+	[status_u3] AS [contracts_status],
+	[title_u3] AS [contracts_title],
+	[__KEY_contracts] AS [__KEY_contracts],
+	[__FK_contracts] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_contracts]);
+
+left join (contracts) 
+LOAD
+    [id_u33] as IDReleaseOrig,
+	[__KEY_releases] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_releases]);
+
+
+left join (contracts)
+LOAD	
+    [id_u8] as IDTenderOrig,
+	[__FK_tender] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tender]);
+
+left join (contracts)
+LOAD	[amount_u4] AS [contracts_amount],
+	[currency_u4] AS [contracts_currency],
+	[__FK_value_u4] AS [__KEY_contracts]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_value_u4]);
+
+left join (contracts)
+LOAD	[durationInDays_u3] AS [contracts_period_durationInDays],
+	$(vConvertToDate([endDate_u4])) AS [contracts_period_endDate],
+	$(vConvertToDate([startDate_u4])) AS [contracts_period_startDate],
+	[__FK_period] AS [__KEY_contracts]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_period]);
+
+drop field [__KEY_contracts], [__KEY_releases] from contracts;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/contracts.qvd') ) THEN
+Concatenate (contracts)
+load 
+	[contracts_dateSigned],
+	[contracts_description],
+	[contracts_status],
+	[contracts_title],
+    [contracts_awardID],
+	[id_u25],
+    [IDContractOrig],
+	IDReleaseOrig,
+    IDTenderOrig,
+	[contracts_amount],
+	[contracts_currency],
+    [contracts_period_durationInDays],
+	[contracts_period_endDate],
+	[contracts_period_startDate]
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/contracts.qvd (qvd)
+where not exists (IDContract, IDContractOrig)
+;
+ENDIF;
+
+Drop field IDContract from contracts;
+
+Store  contracts into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/contracts.qvd (qvd);
+Drop table contracts;
+
+
+
+
+//--contracts:items
+
+[items_contract]:
+LOAD	[description_u7] AS [contracts_items_description],
+	[descriptionRu_u4] AS [contracts_items_descriptionRu],
+	[descriptionHy_u4] AS [contracts_items_descriptionHy],
+	[id_u14] AS [id_u20],
+    [id_u14] AS [IDItemsContractOrig],
+    [id_u14] AS [IDItemsContract],
+	[itemPosition_u0] AS [contracts_items_itemPosition],
+	[quantity_u0] AS [contracts_items_quantity],
+	[notAFM_u0] AS [contracts_items_notAFM],
+	[relatedlot_u0] AS [contracts_items_relatedlot], 
+	[__KEY_items_u0] AS [__KEY_items_u0],
+	[__FK_items_u0] AS [__KEY_contracts]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_items_u0]);
+
+left join (items_contract)
+LOAD	
+    only([id_u16]) AS [IDContractOrig],
+    only([id_u16]) AS [IDContract],
+	[__KEY_contracts] AS [__KEY_contracts]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_contracts])
+group by [__KEY_contracts]
+;
+
+left join (items_contract)
+LOAD	only([description_u6]) AS [contracts_items_description_CPV],
+	only([descriptionRu_u3]) AS [contracts_items_description_CPVRu], 
+	only([descriptionHy_u3]) AS [contracts_items_description_CPVHy], 
+	only([id_u12]) AS [IDCPV],
+	only([scheme_u3]) AS [contracts_items_scheme_CPV],
+	[__FK_classification_u0] AS [__KEY_items_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_classification_u0])
+group by [__FK_classification_u0]
+;
+
+left join (items_contract)
+LOAD	only([description_u5]) AS [contracts_items_description_CPV_AM],
+	only([descriptionRu_u2]) AS [contracts_items_description_CPV_AMRu], 
+	only([descriptionHy_u2]) AS [contracts_items_description_CPV_AMHy], 
+	only([id_u11]) AS [IDCPV_AM],
+	only([scheme_u2]) AS [contracts_items_scheme_CPV_AM],
+	[__FK_additionalClassifications_u0] AS [__KEY_items_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_additionalClassifications_u0])
+group by [__FK_additionalClassifications_u0]
+;
+
+[unit_u0]:
+LOAD	only([id_u13]) AS [contracts_items_unit_id],
+	only([name_u5]) AS [contracts_items_unit_name],
+	only([nameHy_u0]) AS [contracts_items_unit_nameHy],
+	only([nameRu_u0]) AS [contracts_items_unit_nameRu],
+	only([scheme_u4]) AS [contracts_items_unit_scheme],
+	[__KEY_unit_u0] AS [__KEY_unit_u0],
+	only([__FK_unit_u0]) AS [__KEY_items_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_unit_u0])
+group by [__KEY_unit_u0]
+;
+
+left join (unit_u0)
+LOAD	only([amount_u3]) AS [contracts_items_unit_amount],
+	only([currency_u3]) AS [contracts_items_unit_currency],
+	[__FK_value_u3] AS [__KEY_unit_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_value_u3])
+group by [__FK_value_u3]
+;
+
+left join (items_contract)
+load * 
+Resident unit_u0;
+
+drop table unit_u0;
+
+drop fields [__KEY_unit_u0], [__KEY_items_u0],[__KEY_contracts] from items_contract;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/contracts_items.qvd') ) THEN
+Concatenate (items_contract)
+load [contracts_items_description],
+	[contracts_items_descriptionRu],
+	[contracts_items_descriptionHy],
+	[id_u20],
+	[contracts_items_itemPosition],
+	[contracts_items_quantity],
+	[contracts_items_notAFM],
+    [contracts_items_relatedlot],
+    [IDContractOrig],
+    [IDItemsContractOrig],
+	[contracts_items_description_CPV],
+	[contracts_items_description_CPVRu], 
+	[contracts_items_description_CPVHy],
+	[IDCPV],
+	[contracts_items_scheme_CPV],
+    [contracts_items_description_CPV_AM],
+	[contracts_items_description_CPV_AMRu], 
+	[contracts_items_description_CPV_AMHy], 
+	[IDCPV_AM],
+	[contracts_items_scheme_CPV_AM],
+    [contracts_items_unit_id],
+	[contracts_items_unit_name],
+	[contracts_items_unit_nameHy],
+	[contracts_items_unit_nameRu],
+	[contracts_items_unit_scheme],
+    [contracts_items_unit_amount],
+	[contracts_items_unit_currency]
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/contracts_items.qvd (qvd)
+where not exists(IDContract, IDContractOrig) 
+;
+ENDIF;
+
+drop fields IDContract, IDItemsContract from items_contract;
+
+Store items_contract into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/contracts_items.qvd (qvd);
+Drop table items_contract;
+
+//--end contracts
+
+
+
+
+
+//--contracts:documents
+
+[documents_contracts]:
+LOAD	[documentType_u0] AS [contracts_documents_documentType],
+	[format_u0] AS [contracts_documents_format],
+	[id_u15] AS [id_u21],
+    [id_u15] AS IDItemsContractDocOrig,
+    [id_u15] AS IDItemsContractDoc,
+	[title_u2] AS [contracts_documents_title],
+	[url_u0] AS [contracts_documents_url],
+	[__FK_documents_u1] AS [__KEY_contracts]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_documents_u1]);
+
+left join (documents_contracts)
+LOAD
+    [id_u16] AS [IDContractOrig],
+    [id_u16] AS [IDContract],
+	[__KEY_contracts] AS [__KEY_contracts]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_contracts]);
+
+drop field [__KEY_contracts] from documents_contracts;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/contracts_documents.qvd') ) THEN
+Concatenate (documents_contracts)
+load [contracts_documents_documentType],
+	[contracts_documents_format],
+	[id_u21],
+	[contracts_documents_title],
+	[contracts_documents_url],
+    IDContractOrig,
+    IDItemsContractDocOrig
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/contracts_documents.qvd (qvd)
+where not exists(IDItemsContractDoc, IDItemsContractDocOrig)
+;
+ENDIF;   
+
+drop field IDContract, IDItemsContractDoc from documents_contracts;
+
+Store documents_contracts into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/contracts_documents.qvd (qvd);
+Drop table documents_contracts;
+
+//--end contracts:documents
+
+
+
+
+
+
+//----awards
+
+[awards]:
+LOAD	[id_u32] AS [IDAwardOrig],
+	[id_u32] AS IDAward,
+	$(vConvertToDate([date_u1])) AS [awards_date], 
+	[status_u4] AS [awards_status],
+	[__KEY_awards] AS [__KEY_awards],
+	[__FK_awards] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_awards]);
+
+left join (awards) 
+LOAD
+	[id_u33] AS [IDReleaseOrig],
+	[__KEY_releases] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_releases]);
+
+left join (awards)
+load 
+    [id_u8] as IDTenderOrig,
+	[__FK_tender] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tender]);
+
+left join (awards)
+LOAD	[amount_u12] AS [awards_amount],
+	[currency_u12] AS [awards_currency],
+	[__FK_value_u7] AS [__KEY_awards]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_value_u7]);
+
+left join(awards)
+LOAD	[durationInDays_u8] AS [contracts_durationInDays], 
+	$(vConvertToDate([endDate_u9])) AS [contracts_endDate],
+	$(vConvertToDate([startDate_u9])) AS [contracts_startDate], 
+	[__FK_contractPeriod_u1] AS [__KEY_awards]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_contractPeriod_u1]);
+
+
+left join(awards)
+LOAD	[id_u27] AS [IDSupplierAwards],
+		[__FK_suppliers] AS [__KEY_awards]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_suppliers]);
+
+drop field [__KEY_awards], [__KEY_releases] from awards; 
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/awards.qvd') ) THEN
+Concatenate (awards)
+load 
+	IDAwardOrig,
+    IDTenderOrig,
+	[awards_status],
+    [awards_date], 
+    IDReleaseOrig,
+	[awards_amount],
+	[awards_currency],
+    [contracts_durationInDays], 
+	[contracts_endDate], 
+	[contracts_startDate], 
+	IDSupplierAwards
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/awards.qvd (qvd)
+WHERE NOT EXISTS (IDAward, IDAwardOrig)
+;
+ENDIF;
+
+drop field IDAward from awards;
+
+Store awards into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/awards.qvd (qvd);
+Drop table awards;
+
+//----end awards
+
+[relatedlots]:
+LOAD	[@Value_uRelatedLots] AS [awards_lotIdOrig],
+		[@Value_uRelatedLots] AS [awards_lotId],
+	[__FK_relatedLots] AS [__KEY_awards]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_relatedLots]);
+
+left join(relatedlots)
+LOAD	[id_u32] AS [IDAwardOrig],
+	[__KEY_awards] AS [__KEY_awards]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_awards]);
+
+drop field [__KEY_awards] from relatedlots;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/awards_relatedlots.qvd') ) THEN
+Concatenate (relatedlots)
+load [awards_lotIdOrig],
+	 IDAwardOrig
+From lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/awards_relatedlots.qvd (qvd)
+where not exists (awards_lotId, awards_lotIdOrig)
+;
+ENDIF;
+
+drop field awards_lotId from relatedlots;
+
+Store relatedlots into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/awards_relatedlots.qvd (qvd); 
+Drop table relatedlots;
+
+//--end awards:lots
+
+
+
+//--awards:items
+
+[items_award]:
+LOAD	[id_u31] AS [id_u29],
+    [id_u31] AS [IDAwardsItemsOrig],
+    [id_u31] AS [IDAwardsItems],
+	[quantity_u2] AS [awards_items_quantity],
+	[description_u15] AS [awards_items_description],
+	[descriptionRu_u10] AS [awards_items_descriptionRu],
+	[descriptionHy_u10] AS [awards_items_descriptionHy],
+	[itemPosition_u1] AS [awards_items_itemPosition],
+	[notAFM_u3] AS [awards_items_notAFM], 
+	[relatedlot_u1] AS [awards_items_relatedlot], 
+	[__KEY_items_u2] AS [__KEY_items_u2],
+	[__FK_items_u2] AS [__KEY_awards]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_items_u2]);
+
+left join (items_award)
+LOAD	only([id_u32]) AS [IDAwardOrig],
+		only([id_u32]) AS [IDAward],
+	[__KEY_awards] AS [__KEY_awards]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_awards])
+group by [__KEY_awards]
+;
+
+left join (items_award)
+LOAD	only([id_u29]) AS [IDCPV],
+	only([scheme_u11]) AS [awards_items_scheme_CPV],
+	only([description_u14]) AS [awards_items_description_CPV],
+	only([descriptionRu_u9]) AS [awards_items_description_CPVRu], 
+	only([descriptionHy_u9]) AS [awards_items_description_CPVHy], 
+	[__FK_classification_u2] AS [__KEY_items_u2]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_classification_u2])
+group by [__FK_classification_u2]
+;
+
+left join (items_award)
+LOAD	only([id_u28]) AS [IDCPV_AM],
+	only([scheme_u10]) AS [awards_items_scheme_CPV_AM],
+	only([description_u13]) AS [awards_items_description_CPV_AM],
+	only([descriptionRu_u8]) AS [awards_items_description_CPV_AMRu], 
+	only([descriptionHy_u8]) AS [awards_items_description_CPV_AMHy],
+	[__FK_additionalClassifications_u2] AS [__KEY_items_u2]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_additionalClassifications_u2])
+group by [__FK_additionalClassifications_u2]
+;
+
+[unit_u2]:
+LOAD	only([id_u30]) AS [awards_items_unit_id],
+	only([scheme_u12]) AS [awards_items_unit_scheme],
+	only([name_u10]) AS [awards_items_unit_name],
+	only([nameHy_u2]) AS [awards_items_unit_nameHy],
+	only([nameRu_u2]) AS [awards_items_unit_nameRu],
+	[__KEY_unit_u2] AS [__KEY_unit_u2],
+	only([__FK_unit_u2]) AS [__KEY_items_u2]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_unit_u2])
+group by [__KEY_unit_u2]
+;
+
+left join (unit_u2)
+LOAD	only([amount_u13]) AS [awards_items_unit_amount],
+	only([currency_u13]) AS [awards_items_unit_currency],
+	[__FK_value_u8] AS [__KEY_unit_u2]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_value_u8])
+group by [__FK_value_u8]
+;
+
+left join (items_award)
+load * 
+Resident unit_u2;
+
+Drop table unit_u2;
+
+drop fields [__KEY_items_u1], [__KEY_unit_u1], __KEY_awards from items_award;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/awards_items.qvd') ) THEN
+Concatenate (items_award)
+load [awards_items_description],
+	[awards_items_descriptionRu],
+	[awards_items_descriptionHy],
+	[id_u29],
+	[awards_items_itemPosition],
+	[awards_items_quantity],
+    [awards_items_notAFM], 
+	[awards_items_relatedlot],
+    IDAwardOrig,
+    IDAwardsItemsOrig,
+    [awards_items_description_CPV],
+    [awards_items_description_CPVRu], 
+	[awards_items_description_CPVHy], 
+	[IDCPV],
+	[awards_items_scheme_CPV],
+    [awards_items_description_CPV_AM],
+    [awards_items_description_CPV_AMRu],
+	[awards_items_description_CPV_AMHy],
+	[IDCPV_AM],
+	[awards_items_scheme_CPV_AM],
+    [awards_items_unit_id],
+	[awards_items_unit_name],
+	[awards_items_unit_nameHy],
+	[awards_items_unit_nameRu],
+	[awards_items_unit_scheme],
+	[awards_items_unit_amount],
+	[awards_items_unit_currency]
+From lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/awards_items.qvd (qvd)
+where not exists (IDAwardsItems, IDAwardsItemsOrig)
+;
+ENDIF;
+
+drop field IDAward, IDAwardsItems from items_award;
+
+Store items_award into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/awards_items.qvd (qvd); 
+Drop table items_award;
+
+//--end awards:items
+
+
+
+
+
+
+//----plannings
+
+[plannings]:
+LOAD	[id_u23] AS [id_u43],
+    [id_u23] as IDPlanningsOrig,
+    [id_u23] as IDPlannings,
+	[planID] AS [plannings_planID],
+	[notAFM_u2] AS [plannings_notAFM],
+	[budgetYear] AS [plannings_budgetYear],
+	[__KEY_plannings] AS [__KEY_plannings],
+	[__FK_plannings] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_plannings]);
+
+left join (plannings)
+load 
+    [id_u8] as IDTenderOrig,
+	[__FK_tender] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tender]);
+
+left join (plannings)
+LOAD
+	[id_u33] AS [IDReleaseOrig],
+    [__KEY_releases] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_releases]);
+
+[budget]:
+LOAD	[id_u17] AS [plannings_budget_id],
+	[project] AS [plannings_budget_project],
+	[projectID] AS [plannings_budget_projectID],
+	[description_u9] AS [plannings_budget_description],
+	[descriptionRu_u5] AS [plannings_budget_descriptionRu],
+	[descriptionHy_u5] AS [plannings_budget_descriptionHy],
+	[IBAN] AS [plannings_budget_IBAN],
+	[budgetType] AS [plannings_budget_budgetType],
+	[__KEY_budget] AS [__KEY_budget],
+	[__FK_budget] AS [__KEY_plannings]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_budget]);
+
+left join (budget)
+LOAD	[amount_u5] AS [plannings_budget_amount],
+	[currency_u5] AS [plannings_budget_currency],
+	[__FK_amount] AS [__KEY_budget]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_amount]);
+
+left join (plannings)
+load * 
+Resident budget;
+
+drop table budget;
+
+drop fields [__KEY_releases], [__KEY_plannings], [__KEY_budget] from plannings;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/plannings.qvd') ) THEN
+Concatenate (plannings)
+	LOAD 
+	[id_u43],
+	[plannings_planID],
+	[plannings_notAFM],
+	[plannings_budgetYear],
+    IDReleaseOrig,
+    IDTenderOrig,
+    [plannings_budget_description],
+	[plannings_budget_descriptionRu],
+	[plannings_budget_descriptionHy],
+	[plannings_budget_id],
+	[plannings_budget_project],
+	[plannings_budget_IBAN],
+	[plannings_budget_projectID],
+	[plannings_budget_budgetType],
+    [plannings_budget_amount],
+	[plannings_budget_currency],
+    IDPlanningsOrig
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/plannings.qvd (qvd)
+where not exists(IDPlannings, IDPlanningsOrig)
+; 
+ENDIF; 
+
+drop field IDPlannings from plannings;
+
+Store plannings into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/plannings.qvd (qvd);
+Drop table plannings;
+
+
+
+//--plannings:tender
+
+[tender_plannings]:
+LOAD	[awardCriteria_u0] AS [plannings_tender_awardCriteria],
+	[procurementMethod_u0] AS [plannings_tender_procurementMethod],
+	[additionalProcurementCategories] AS [plannings_tender_additionalProcurementCategories],
+	[procurementMethodDetails_u0] AS [plannings_tender_procurementMethodDetails],
+	[procurementMethodDetailsRu_u0] AS [plannings_tender_procurementMethodDetailsRu],
+	[procurementMethodDetailsHy_u0] AS [plannings_tender_procurementMethodDetailsHy],
+	[__KEY_tender_u0] AS [__KEY_tender_u0],
+	[__FK_tender_u0] AS [__KEY_plannings]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tender_u0]);
+
+left join (tender_plannings)
+LOAD	[@Value_u3Plannings] AS [plannings_tender_submissionMethod],
+	[__FK_submissionMethod_u0Plannings] AS [__KEY_tender_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_submissionMethod_u0Plannings]);
+
+left join (tender_plannings)
+LOAD	
+	[id_u23] AS [IDPlanningsOrig],
+    [id_u23] AS IDPlanningsTenderOrig,
+    [id_u23] AS IDPlanningsTender,
+	[__KEY_plannings] AS [__KEY_plannings]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_plannings]);
+
+left join (tender_plannings)
+LOAD	
+	[id_u22] AS [IDPEtenderPLAN],
+	[__FK_procuringEntity_u0] AS [__KEY_tender_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_procuringEntity_u0]);
+
+left join (tender_plannings)
+LOAD	[amount_u8] AS [plannings_tender_initial_amount],
+	[currency_u8] AS [plannings_tender_initial_currency],
+	[__FK_initialValue] AS [__KEY_tender_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_initialValue]);
+
+left join (tender_plannings)
+LOAD	[amount_u9] AS [plannings_tender_amended_amount],
+	[currency_u9] AS [plannings_tender_amended_currency],
+	[__FK_amendedValue] AS [__KEY_tender_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_amendedValue]);
+
+left join (tender_plannings)
+LOAD	[amount_u10] AS [plannings_tender_blocked_amount],
+	[currency_u10] AS [plannings_tender_blocked_currency],
+	[__FK_blockedByTenderValue] AS [__KEY_tender_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_blockedByTenderValue]);
+
+left join (tender_plannings)
+LOAD	[amount_u11] AS [plannings_tender_saved_amount],
+	[currency_u11] AS [plannings_tender_saved_currency],
+	[__FK_savedFromContractValue] AS [__KEY_tender_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_savedFromContractValue]);
+
+left join (tender_plannings)
+LOAD	[durationInDays_u4] AS [plannings_tender_awardPeriod_durationInDays],
+	$(vConvertToDate([endDate_u5])) AS [plannings_tender_awardPeriod_endDate],
+	$(vConvertToDate([startDate_u5])) AS [plannings_tender_awardPeriod_startDate],
+	[__FK_awardPeriod_u0] AS [__KEY_tender_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_awardPeriod_u0]);
+
+left join (tender_plannings)
+LOAD	[durationInDays_u5] AS [plannings_tender_contractPeriod_durationInDays],
+	$(vConvertToDate([endDate_u6])) AS [plannings_tender_contractPeriod_endDate],
+	$(vConvertToDate([startDate_u6])) AS [plannings_tender_contractPeriod_startDate],
+	[__FK_contractPeriod_u0] AS [__KEY_tender_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_contractPeriod_u0]);
+
+left join (tender_plannings)
+LOAD	[durationInDays_u6] AS [plannings_tender_enquiryPeriod_durationInDays],
+	$(vConvertToDate([endDate_u7])) AS [plannings_tender_enquiryPeriod_endDate],
+	$(vConvertToDate([startDate_u7])) AS [plannings_tender_enquiryPeriod_startDate],
+	[__FK_enquiryPeriod_u0] AS [__KEY_tender_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_enquiryPeriod_u0]);
+
+left join (tender_plannings)
+LOAD	[durationInDays_u7] AS [plannings_tender_tenderPeriod_durationInDays],
+	$(vConvertToDate([endDate_u8])) AS [plannings_tender_tenderPeriod_endDate],
+	$(vConvertToDate([startDate_u8])) AS [plannings_tender_tenderPeriod_startDate],
+	[__FK_tenderPeriod_u0] AS [__KEY_tender_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tenderPeriod_u0]);
+
+left join (tender_plannings)
+LOAD	[amount_u7] AS [plannings_tender_amount],
+	[currency_u7] AS [plannings_tender_currency],
+	[__FK_value_u6] AS [__KEY_tender_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_value_u6]);
+
+drop fields [__KEY_tender_u0], [__KEY_plannings] from tender_plannings;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/plannings_tender.qvd') ) THEN
+Concatenate (tender_plannings)
+load [plannings_tender_awardCriteria],
+	[plannings_tender_procurementMethod],
+	[plannings_tender_procurementMethodDetails],
+	[plannings_tender_procurementMethodDetailsRu],
+	[plannings_tender_procurementMethodDetailsHy],
+	[plannings_tender_additionalProcurementCategories],
+	[plannings_tender_submissionMethod],
+	[IDPlanningsOrig],
+    IDPlanningsTenderOrig,
+    [IDPEtenderPLAN],
+	[plannings_tender_initial_amount],
+	[plannings_tender_initial_currency],
+	[plannings_tender_amended_amount],
+	[plannings_tender_amended_currency],
+	[plannings_tender_blocked_amount],
+	[plannings_tender_blocked_currency],
+	[plannings_tender_saved_amount],
+	[plannings_tender_saved_currency],
+	[plannings_tender_contractPeriod_endDate],
+	[plannings_tender_contractPeriod_startDate],
+	[plannings_tender_contractPeriod_durationInDays],
+	[plannings_tender_enquiryPeriod_endDate],
+	[plannings_tender_enquiryPeriod_startDate],
+	[plannings_tender_enquiryPeriod_durationInDays],
+	[plannings_tender_tenderPeriod_endDate],
+	[plannings_tender_tenderPeriod_startDate],
+	[plannings_tender_tenderPeriod_durationInDays],
+	[plannings_tender_awardPeriod_endDate],
+	[plannings_tender_awardPeriod_startDate],
+	[plannings_tender_awardPeriod_durationInDays],
+	[plannings_tender_amount],
+	[plannings_tender_currency]
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/plannings_tender.qvd (qvd)
+where not exists(IDPlanningsTender, IDPlanningsTenderOrig)
+;
+ENDIF;
+
+drop fields IDPlanningsTender from tender_plannings;
+
+Store tender_plannings into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/plannings_tender.qvd (qvd);
+DROP TABLE tender_plannings;
+
+//----end plannigns
+
+
+
+//--plannings:tender:procuringEntity
+
+[procuringEntity_tender_plan]:
+LOAD	[name_u7] AS [plannings_tender_PE_name],
+	[id_u22] AS [IDPEtenderPLAN],
+	[__FK_procuringEntity_u0] AS [__KEY_tender_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_procuringEntity_u0]);
+
+left join(procuringEntity_tender_plan)
+load 
+	[__KEY_tender_u0] AS [__KEY_tender_u0],
+	[__FK_tender_u0] AS [__KEY_plannings]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tender_u0]);
+
+left join (procuringEntity_tender_plan)
+LOAD	
+    [id_u23] AS IDPlanningsTenderOrig,
+	[__KEY_plannings] AS [__KEY_plannings]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_plannings]);
+
+drop fields [__KEY_tender_u0], [__KEY_plannings] from procuringEntity_tender_plan;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/plannings_tender_procuringEntity.qvd') ) THEN
+Concatenate (procuringEntity_tender_plan)
+load plannings_tender_PE_name,
+	 IDPEtenderPLAN,
+     IDPlanningsTenderOrig
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/plannings_tender_procuringEntity.qvd (qvd);
+ENDIF;
+
+Store procuringEntity_tender_plan into lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/plannings_tender_procuringEntity.qvd (qvd);
+Drop table procuringEntity_tender_plan;
+
+//--end plannings:tender:procuringEntity
+
+
+
+
+
+//--plannings:tender:items
+
+[items_tender_plan]:
+LOAD	[description_u12] AS [plannings_tender_items_description],
+	[id_u21] AS [id_u39],
+    [id_u21] as IDPlanningsTenderItemOrig,
+    [id_u21] as IDPlanningsTenderItem,
+	[quantity_u1] AS [plannings_tender_items_quantity],
+	[quantityInitial] AS [plannings_tender_items_quantityInitial],
+	[quantityAmended] AS [plannings_tender_items_quantityAmended],
+	[quantityBlockedByTender] AS [plannings_tender_items_quantityBlockedByTender],
+	[unitPrice] AS [plannings_tender_items_unitPrice],
+	[notAFM_u1] AS [notAFM_u1],
+	[__KEY_items_u1] AS [__KEY_items_u1],
+	[__FK_items_u1] AS [__KEY_tender_u0]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_items_u1]);
+
+left join(items_tender_plan)
+load 
+	[__KEY_tender_u0] AS [__KEY_tender_u0],
+	[__FK_tender_u0] AS [__KEY_plannings]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tender_u0]);
+
+left join (items_tender_plan)
+LOAD	
+    [id_u23] AS IDPlanningsTenderOrig,
+    [id_u23] AS IDPlanningsTender,
+	[__KEY_plannings] AS [__KEY_plannings]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_plannings]);
+
+left join (items_tender_plan)
+LOAD	[id_u19] AS [IDCPV],
+	[scheme_u6] AS [plannings_tender_items_scheme_CPV],
+	[description_u10] AS [plannings_tender_items_description_CPV],
+	[descriptionRu_u6] AS [plannings_tender_items_descriptionRu_CPV],
+	[descriptionHy_u6] AS [plannings_tender_items_descriptionHy_CPV],
+	[__FK_classification_u1] AS [__KEY_items_u1]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_classification_u1]);
+
+left join (items_tender_plan)
+LOAD	[id_u20] AS [IDCPV_AM],
+	[scheme_u7] AS [plannings_tender_items_scheme_CPV_AM],
+	[description_u11] AS [plannings_tender_items_description_CPV_AM],
+	[descriptionRu_u7] AS [plannings_tender_items_descriptionRu_CPV_AM],
+	[descriptionHy_u7] AS [plannings_tender_items_descriptionHy_CPV_AM],
+	[__FK_additionalClassifications_u1] AS [__KEY_items_u1]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_additionalClassifications_u1]);
+
+[unit_u1]:
+LOAD	[id_u18] AS [plannings_tender_items_unit_id],
+	[name_u6] AS [plannings_tender_items_unit_name],
+	[name_hy] AS [plannings_tender_items_unit_name_hy],
+	[name_ru] AS [plannings_tender_items_unit_name_ru],
+	[scheme_u5] AS [plannings_tender_items_unit_scheme],
+	[__KEY_unit_u1] AS [__KEY_unit_u1],
+	[__FK_unit_u1] AS [__KEY_items_u1]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_unit_u1]);
+
+left join (unit_u1)
+LOAD	[amount_u6] AS [plannings_tender_items_unit_amount],
+	[currency_u6] AS [plannings_tender_items_unit_currency],
+	[__FK_value_u5] AS [__KEY_unit_u1]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_value_u5]);
+
+left join (items_tender_plan)
+load * 
+Resident unit_u1;
+
+Drop table unit_u1;
+
+drop field [__KEY_items_u1], [__KEY_plannings], [__KEY_tender_u0] from items_tender_plan;
+
+if NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/plannings_tender_items.qvd') ) THEN
+Concatenate (items_tender_plan)
+load [plannings_tender_items_description],
+	[id_u39],
+	[plannings_tender_items_quantity],
+	[plannings_tender_items_quantityInitial],
+	[plannings_tender_items_quantityAmended],
+	[plannings_tender_items_quantityBlockedByTender],
+	[plannings_tender_items_unitPrice],
+	IDPlanningsTenderOrig,
+    IDPlanningsTenderItemOrig,
+    [plannings_tender_items_description_CPV],
+	[plannings_tender_items_descriptionRu_CPV],
+	[plannings_tender_items_descriptionHy_CPV],
+	[IDCPV],
+	[plannings_tender_items_scheme_CPV],
+	[plannings_tender_items_description_CPV_AM],
+	[plannings_tender_items_descriptionRu_CPV_AM],
+	[plannings_tender_items_descriptionHy_CPV_AM],
+	[IDCPV_AM],
+    [notAFM_u1],
+	[plannings_tender_items_scheme_CPV_AM],
+    [plannings_tender_items_unit_id], 
+	[plannings_tender_items_unit_name],
+	[plannings_tender_items_unit_name_hy],
+	[plannings_tender_items_unit_name_ru],
+	[plannings_tender_items_unit_scheme],
+    [plannings_tender_items_unit_amount],
+	[plannings_tender_items_unit_currency]
+From lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/plannings_tender_items.qvd (qvd)
+where not exists (IDPlanningsTenderItem, IDPlanningsTenderItemOrig)
+;
+ENDIF;
+
+drop field IDPlanningsTender, IDPlanningsTenderItem from items_tender_plan;
+
+Store items_tender_plan into lib://ProZorroARMData/01_DataBase/02_QVD_DB/02_Transaction/plannings_tender_items.qvd (qvd);
+Drop table items_tender_plan;
+
+//end plannings:tender:items
+
+
+
+
+
+
+
+//----parties
+
+[parties]:
+LOAD 
+	[__KEY_parties] AS [__KEY_parties],
+	[id_u26] AS [IDPartyOrig],
+	[name_u8] AS [name],
+	[nameRu_u1] AS [nameRu],
+	[nameHy_u1] AS [nameHy],
+	[_id] AS [_id],
+	[__FK_parties] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_parties]);
+
+//date for sorting
+left join(parties)
+LOAD
+	$(vConvertToDate(datePublished_t0)) AS [tender_announcementDate],
+	[__FK_tender] AS [__KEY_releases]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_tender]);
+
+left join(parties)
+LOAD	[id_u24] AS [id],
+	[legalName] AS [legalName],
+	[legalNameRu] AS [legalNameRu],
+	[legalNameHy] AS [legalNameHy],
+	[scheme_u8] AS [scheme],
+	[uri_u0] AS [identifier_uri],
+	[__FK_identifier] AS [__KEY_parties]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_identifier]);
+
+left join(parties)
+LOAD	[id_u25] AS [AI_id],
+	[legalName_u0] AS [AI_legalName],
+	[legalNameRu_u0] AS [AI_legalNameRu],
+	[legalNameHy_u0] AS [AI_legalNameHy],
+	[scheme_u9] AS [AI_scheme],
+	[__FK_additionalIdentifiers] AS [__KEY_parties]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_additionalIdentifiers]);
+
+left join(parties)
+LOAD	[countryName] AS [countryName],
+	[locality] AS [locality],
+	[postalCode] AS [postalCode],
+	[streetAddress] AS [streetAddress],
+	[__FK_address] AS [__KEY_parties]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_address]);
+
+
+left join(parties)
+LOAD	[email] AS [email],
+	[faxNumber] AS [faxNumber],
+	[telephone] AS [telephone],
+	[uri_u1] AS [contactPoint_uri],
+	[__FK_contactPoint] AS [__KEY_parties]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_contactPoint]);
+
+
+left join(parties)
+LOAD	[financedByBudget] AS [financedByBudget],
+	[departmentalCode] AS [departmentalCode],
+	[__FK_details_u0] AS [__KEY_parties]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_details_u0]);
+
+
+left join(parties)
+LOAD	[@Value_u1] AS [roles],
+	[__FK_roles] AS [__KEY_parties]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_roles]);
+
+drop fields [__KEY_parties], [__KEY_releases] from parties;
+
+//----end parties
+
+//----buyer
+buyer_:
+NoConcatenate
+load IDPartyOrig as IDbuyer,
+    name as buyer_name,
+    '('&IDPartyOrig&') '&nameHy as buyer_code_name,
+    nameRu as buyer_nameRu,
+    nameHy as buyer_nameHy,
+    _id as buyer__id,
+    id as buyer_id,
+    legalName as buyer_legalName,
+    legalNameRu as buyer_legalNameRu,
+    legalNameHy as buyer_legalNameHy,
+    scheme as buyer_scheme,
+    identifier_uri as buyer_identifier_uri,
+    AI_id as buyer_AI_id,
+    AI_legalName as buyer_AI_legalName,
+    AI_legalNameRu as buyer_AI_legalNameRu,
+    AI_legalNameHy as buyer_AI_legalNameHy,
+    AI_scheme as buyer_AI_scheme,
+    countryName as buyer_countryName,
+    locality as  buyer_locality,
+    postalCode as buyer_postalCode,
+    streetAddress as buyer_streetAddress,
+    email  as buyer_email,
+    faxNumber as buyer_faxNumber,
+    telephone as buyer_telephone,
+    contactPoint_uri as buyer_contactPoint_uri,
+    financedByBudget as buyer_financedByBudget,
+    departmentalCode  as buyer_departmentalCode,
+    roles as buyer_roles,
+    tender_announcementDate
+Resident parties
+where roles = 'buyer'
+;
+
+If NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/buyer.qvd') ) THEN
+Concatenate(buyer_)
+load IDbuyer,
+     buyer_name,
+     buyer_code_name,
+     buyer_nameRu,
+     buyer_nameHy,
+     buyer__id,
+     buyer_id,
+     buyer_legalName,
+     buyer_legalNameRu,
+     buyer_legalNameHy,
+     buyer_scheme,
+     buyer_identifier_uri,
+     buyer_AI_id,
+     buyer_AI_legalName,
+     buyer_AI_legalNameRu,
+     buyer_AI_legalNameHy,
+     buyer_AI_scheme,
+     buyer_countryName,
+     buyer_locality,
+     buyer_postalCode,
+     buyer_streetAddress,
+     buyer_email,
+     buyer_faxNumber,
+     buyer_telephone,
+     buyer_contactPoint_uri,
+     buyer_financedByBudget,
+     buyer_departmentalCode,
+     buyer_roles,
+     tender_announcementDate
+From lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/buyer.qvd (qvd);
+ENDIF;
+
+buyer:
+NoConcatenate
+load LastValue(IDbuyer) as IDbuyer,
+    LastValue(buyer_name) as buyer_name,
+    '('&LastValue(IDbuyer)&') '&LastValue(buyer_nameHy) as buyer_code_name,
+    LastValue(buyer_nameRu) as buyer_nameRu,
+    LastValue(buyer_nameHy) as buyer_nameHy,
+    LastValue(buyer__id) as buyer__id,
+    LastValue(buyer_id) as buyer_id,
+    LastValue(buyer_legalName) as buyer_legalName,
+    LastValue(buyer_legalNameRu) as buyer_legalNameRu,
+    LastValue(buyer_legalNameHy) as buyer_legalNameHy,
+    LastValue(buyer_scheme) as buyer_scheme,
+    LastValue(buyer_identifier_uri) as buyer_identifier_uri,
+    LastValue(buyer_AI_id) as buyer_AI_id,
+    LastValue(buyer_AI_legalName) as buyer_AI_legalName,
+    LastValue(buyer_AI_legalNameRu) as buyer_AI_legalNameRu,
+    LastValue(buyer_AI_legalNameHy) as buyer_AI_legalNameHy,
+    LastValue(buyer_AI_scheme) as buyer_AI_scheme,
+    LastValue(buyer_countryName) as buyer_countryName,
+    LastValue(buyer_locality) as  buyer_locality,
+    LastValue(buyer_postalCode) as buyer_postalCode,
+    LastValue(buyer_streetAddress) as buyer_streetAddress,
+    LastValue(buyer_email)  as buyer_email,
+    LastValue(buyer_faxNumber) as buyer_faxNumber,
+    LastValue(buyer_telephone) as buyer_telephone,
+    LastValue(buyer_contactPoint_uri) as buyer_contactPoint_uri,
+    LastValue(buyer_financedByBudget) as buyer_financedByBudget,
+    LastValue(buyer_departmentalCode)  as buyer_departmentalCode,
+    LastValue(buyer_roles) as buyer_roles,
+    LastValue(tender_announcementDate) as tender_announcementDate
+Resident buyer_
+group by IDbuyer
+;
+
+drop table buyer_;
+
+Store buyer into lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/buyer.qvd (qvd);
+Drop table buyer;
+
+//----end buyer
+
+
+//----bids_tenderers
+bids_tenderers_:
+NoConcatenate
+load IDPartyOrig as IDtenderers_bids,
+    name as bids_tenderers_name,
+    '('&IDPartyOrig&') '&nameHy as bids_tenderers_code_name,
+    nameRu as bids_tenderers_nameRu,
+    nameHy as bids_tenderers_nameHy,
+    _id as bids_tenderers__id,
+    id as bids_tenderers_id,
+    legalName as bids_tenderers_legalName,
+    legalNameRu as bids_tenderers_legalNameRu,
+    legalNameHy as bids_tenderers_legalNameHy,
+    scheme as bids_tenderers_scheme,
+    identifier_uri as bids_tenderers_identifier_uri,
+    AI_id as bids_tenderers_AI_id,
+    AI_legalName as bids_tenderers_AI_legalName,
+    AI_legalNameRu as bids_tenderers_AI_legalNameRu,
+    AI_legalNameHy as bids_tenderers_AI_legalNameHy,
+    AI_scheme as bids_tenderers_AI_scheme,
+    countryName as bids_tenderers_countryName,
+    locality as  bids_tenderers_locality,
+    postalCode as bids_tenderers_postalCode,
+    streetAddress as bids_tenderers_streetAddress,
+    email  as bids_tenderers_email,
+    faxNumber as bids_tenderers_faxNumber,
+    telephone as bids_tenderers_telephone,
+    contactPoint_uri as bids_tenderers_contactPoint_uri,
+    financedByBudget as bids_tenderers_financedByBudget,
+    departmentalCode  as bids_tenderers_departmentalCode,
+    roles as bids_tenderers_roles,
+    tender_announcementDate
+Resident parties
+where roles = 'tenderer'
+;
+
+If NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/bids_tenderers.qvd') ) THEN
+Concatenate(bids_tenderers_)
+load IDtenderers_bids,
+    bids_tenderers_name,
+    bids_tenderers_code_name,
+    bids_tenderers_nameRu,
+    bids_tenderers_nameHy,
+    bids_tenderers__id,
+    bids_tenderers_id,
+    bids_tenderers_legalName,
+    bids_tenderers_legalNameRu,
+    bids_tenderers_legalNameHy,
+    bids_tenderers_scheme,
+    bids_tenderers_identifier_uri,
+    bids_tenderers_AI_id,
+    bids_tenderers_AI_legalName,
+    bids_tenderers_AI_legalNameRu,
+    bids_tenderers_AI_legalNameHy,
+    bids_tenderers_AI_scheme,
+    bids_tenderers_countryName,
+    bids_tenderers_locality,
+    bids_tenderers_postalCode,
+    bids_tenderers_streetAddress,
+    bids_tenderers_email,
+    bids_tenderers_faxNumber,
+    bids_tenderers_telephone,
+    bids_tenderers_contactPoint_uri,
+    bids_tenderers_financedByBudget,
+    bids_tenderers_departmentalCode,
+    bids_tenderers_roles,
+    tender_announcementDate
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/bids_tenderers.qvd (qvd);
+ENDIF;
+
+bids_tenderers:
+NoConcatenate
+load LastValue(IDtenderers_bids) as IDtenderers_bids,
+    LastValue(bids_tenderers_name) as bids_tenderers_name,
+    '('&LastValue(IDtenderers_bids)&') '&LastValue(bids_tenderers_nameHy) as bids_tenderers_code_name,
+    LastValue(bids_tenderers_nameRu) as bids_tenderers_nameRu,
+    LastValue(bids_tenderers_nameHy) as bids_tenderers_nameHy,
+    LastValue(bids_tenderers__id) as bids_tenderers__id,
+    LastValue(bids_tenderers_id) as bids_tenderers_id,
+    LastValue(bids_tenderers_legalName) as bids_tenderers_legalName,
+    LastValue(bids_tenderers_legalNameRu) as bids_tenderers_legalNameRu,
+    LastValue(bids_tenderers_legalNameHy) as bids_tenderers_legalNameHy,
+    LastValue(bids_tenderers_scheme) as bids_tenderers_scheme,
+    LastValue(bids_tenderers_identifier_uri) as bids_tenderers_identifier_uri,
+    LastValue(bids_tenderers_AI_id) as bids_tenderers_AI_id,
+    LastValue(bids_tenderers_AI_legalName) as bids_tenderers_AI_legalName,
+    LastValue(bids_tenderers_AI_legalNameRu) as bids_tenderers_AI_legalNameRu,
+    LastValue(bids_tenderers_AI_legalNameHy) as bids_tenderers_AI_legalNameHy,
+    LastValue(bids_tenderers_AI_scheme) as bids_tenderers_AI_scheme,
+    LastValue(bids_tenderers_countryName) as bids_tenderers_countryName,
+    LastValue(bids_tenderers_locality) as  bids_tenderers_locality,
+    LastValue(bids_tenderers_postalCode) as bids_tenderers_postalCode,
+    LastValue(bids_tenderers_streetAddress) as bids_tenderers_streetAddress,
+    LastValue(bids_tenderers_email)  as bids_tenderers_email,
+    LastValue(bids_tenderers_faxNumber) as bids_tenderers_faxNumber,
+    LastValue(bids_tenderers_telephone) as bids_tenderers_telephone,
+    LastValue(bids_tenderers_contactPoint_uri) as bids_tenderers_contactPoint_uri,
+    LastValue(bids_tenderers_financedByBudget) as bids_tenderers_financedByBudget,
+    LastValue(bids_tenderers_departmentalCode)  as bids_tenderers_departmentalCode,
+    LastValue(bids_tenderers_roles) as bids_tenderers_roles,
+    LastValue(tender_announcementDate) as tender_announcementDate    
+Resident bids_tenderers_
+group by IDtenderers_bids
+;
+
+drop table bids_tenderers_;
+
+Store bids_tenderers into lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/bids_tenderers.qvd (qvd);
+Drop table bids_tenderers;
+
+//----end bids_tenderers
+
+
+//----awards_suppliers
+awards_suppliers_:
+NoConcatenate
+load IDPartyOrig as IDSupplierAwards,
+    name as awards_supplier_name,
+    '('&IDPartyOrig&') '&nameHy as awards_supplier_code_name,
+    nameRu as awards_supplier_nameRu,
+    nameHy as awards_supplier_nameHy,
+    _id as awards_supplier__id,
+    id as awards_supplier_id,
+    legalName as awards_supplier_legalName,
+    legalNameRu as awards_supplier_legalNameRu,
+    legalNameHy as awards_supplier_legalNameHy,
+    scheme as awards_supplier_scheme,
+    identifier_uri as awards_supplier_identifier_uri,
+    AI_id as awards_supplier_AI_id,
+    AI_legalName as awards_supplier_AI_legalName,
+    AI_legalNameRu as awards_supplier_AI_legalNameRu,
+    AI_legalNameHy as awards_supplier_AI_legalNameHy,
+    AI_scheme as awards_supplier_AI_scheme,
+    countryName as awards_supplier_countryName,
+    locality as  awards_supplier_locality,
+    postalCode as awards_supplier_postalCode,
+    streetAddress as awards_supplier_streetAddress,
+    email  as awards_supplier_email,
+    faxNumber as awards_supplier_faxNumber,
+    telephone as awards_supplier_telephone,
+    contactPoint_uri as awards_supplier_contactPoint_uri,
+    financedByBudget as awards_supplier_financedByBudget,
+    departmentalCode  as awards_supplier_departmentalCode,
+    roles as awards_supplier_roles,
+    tender_announcementDate
+Resident parties
+where roles = 'supplier'
+;
+
+If NOT Isnull( FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/awards_suppliers.qvd') ) THEN
+Concatenate(awards_suppliers_)
+load  IDSupplierAwards,
+     awards_supplier_name,
+     awards_supplier_code_name,
+     awards_supplier_nameRu,
+     awards_supplier_nameHy,
+     awards_supplier__id,
+     awards_supplier_id,
+     awards_supplier_legalName,
+     awards_supplier_legalNameRu,
+     awards_supplier_legalNameHy,
+     awards_supplier_scheme,
+     awards_supplier_identifier_uri,
+     awards_supplier_AI_id,
+     awards_supplier_AI_legalName,
+     awards_supplier_AI_legalNameRu,
+     awards_supplier_AI_legalNameHy,
+     awards_supplier_AI_scheme,
+     awards_supplier_countryName,
+      awards_supplier_locality,
+     awards_supplier_postalCode,
+     awards_supplier_streetAddress,
+     awards_supplier_email,
+     awards_supplier_faxNumber,
+     awards_supplier_telephone,
+     awards_supplier_contactPoint_uri,
+     awards_supplier_financedByBudget,
+     awards_supplier_departmentalCode,
+     awards_supplier_roles,
+     tender_announcementDate
+FROM lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/awards_suppliers.qvd (qvd);
+ENDIF;
+
+awards_suppliers:
+NoConcatenate
+load LastValue(IDSupplierAwards) as IDSupplierAwards,
+    LastValue(awards_supplier_name) as awards_supplier_name,
+    '('&LastValue(IDSupplierAwards)&') '&LastValue(awards_supplier_nameHy) as awards_supplier_code_name,
+    LastValue(awards_supplier_nameRu) as awards_supplier_nameRu,
+    LastValue(awards_supplier_nameHy) as awards_supplier_nameHy,
+    LastValue(awards_supplier__id) as awards_supplier__id,
+    LastValue(awards_supplier_id) as awards_supplier_id,
+    LastValue(awards_supplier_legalName) as awards_supplier_legalName,
+    LastValue(awards_supplier_legalNameRu) as awards_supplier_legalNameRu,
+    LastValue(awards_supplier_legalNameHy) as awards_supplier_legalNameHy,
+    LastValue(awards_supplier_scheme) as awards_supplier_scheme,
+    LastValue(awards_supplier_identifier_uri) as awards_supplier_identifier_uri,
+    LastValue(awards_supplier_AI_id) as awards_supplier_AI_id,
+    LastValue(awards_supplier_AI_legalName) as awards_supplier_AI_legalName,
+    LastValue(awards_supplier_AI_legalNameRu) as awards_supplier_AI_legalNameRu,
+    LastValue(awards_supplier_AI_legalNameHy) as awards_supplier_AI_legalNameHy,
+    LastValue(awards_supplier_AI_scheme) as awards_supplier_AI_scheme,
+    LastValue(awards_supplier_countryName) as awards_supplier_countryName,
+    LastValue(awards_supplier_locality) as  awards_supplier_locality,
+    LastValue(awards_supplier_postalCode) as awards_supplier_postalCode,
+    LastValue(awards_supplier_streetAddress) as awards_supplier_streetAddress,
+    LastValue(awards_supplier_email)  as awards_supplier_email,
+    LastValue(awards_supplier_faxNumber) as awards_supplier_faxNumber,
+    LastValue(awards_supplier_telephone) as awards_supplier_telephone,
+    LastValue(awards_supplier_contactPoint_uri) as awards_supplier_contactPoint_uri,
+    LastValue(awards_supplier_financedByBudget) as awards_supplier_financedByBudget,
+    LastValue(awards_supplier_departmentalCode)  as awards_supplier_departmentalCode,
+    LastValue(awards_supplier_roles) as awards_supplier_roles,
+    LastValue(tender_announcementDate) as tender_announcementDate
+Resident awards_suppliers_
+group by IDSupplierAwards
+;
+
+drop table awards_suppliers_;
+
+Store awards_suppliers into lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/awards_suppliers.qvd (qvd);
+Drop table awards_suppliers;
+
+drop table parties;
+
+
+
+////Offset Clean
+
+
+OffsetTable:
+LOAD	[uri] AS [uri]
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_next_page]);
+
+DROP TABLE RestConnectorMasterTable;
+
+LET vURL = Peek('uri', -1, 'OffsetTable');
+
+Drop table OffsetTable;
+
+
+IF $(RowsQtyTenderHeaders) <> 0 THEN
+OffsetTable:
+load '$(vURL)' as uri
+AutoGenerate (1);
+
+Store OffsetTable into lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/OffsetTable.txt (txt);
+Drop Table OffsetTable;
+ENDIF;
+
+Concatenate(ADDOffsetTable)
+load '$(vURL)' as offsetURI,
+	 Now() as loadTime
+AutoGenerate (1);
+
+Store ADDOffsetTable into lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/OffsetTableALL.txt (txt);
+DROP table ADDOffsetTable;
+
+Sleep 5000;
+
+LOOP WHILE $(RowsQtyTenderHeaders) > 0;
+
+
+////Currency
+
+
+IF IsNull(FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/ExchangeRate.qvd')) then 
+tmp:
+load * inline [
+ISO, Amount, Rate, exrate_date
+SDR, 1, 648.8700, 28.11.2016
+]; //in the source exchange rate for this date is missing, the rate is taken as of 27.11.2016
+
+store tmp into lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/ExchangeRate.qvd (qvd);
+drop table tmp;
+ENDIF;
+
+SET DateFormatEX='YYYY-MM-DD';
+SET vConvertToDateEX = "Date(Floor(TimeStamp(ConvertToLocalTime($1), '$(TimestampFormat)')), '$(DateFormatEX)')";
+
+dateForExExist:
+load * inline [
+exrate_date_
+];
+
+IF not IsNull(FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/ExchangeRate.qvd')) then 
+Concatenate(dateForExExist)
+LOAD
+    $(vConvertToDateEX(exrate_date)) as exrate_date_
+FROM [lib://ProZorroARMData/01_DataBase\02_QVD_DB\01_Dictionary\ExchangeRate.qvd]
+(qvd);
+
+store dateForExExist into lib://ProZorroARMData/01_DataBase\02_QVD_DB\01_Dictionary\rate_1.qvd (qvd);
+ENDIF;
+
+
+
+dateForEXrate:
+LOAD Distinct
+    $(vConvertToDateEX(tender_datePublished)) as exrate_date
+FROM [lib://ProZorroARMData/01_DataBase\02_QVD_DB\02_Transaction\tender.qvd]
+(qvd)
+where not exists(exrate_date_, $(vConvertToDateEX(tender_datePublished)))
+and Date(floor(tender_datePublished)) >= MakeDate(2015, 11, 01)
+;
+
+
+
+Concatenate(dateForEXrate)
+LOAD Distinct
+    $(vConvertToDateEX(contracts_dateSigned)) as exrate_date
+FROM [lib://ProZorroARMData/01_DataBase\02_QVD_DB\02_Transaction\contracts.qvd]
+(qvd)
+where not exists(exrate_date, contracts_dateSigned)
+and not Exists(exrate_date_, $(vConvertToDateEX(contracts_dateSigned)))
+and Date(floor(contracts_dateSigned)) >= MakeDate(2015, 11, 01)
+;
+
+store dateForEXrate into lib://ProZorroARMData/01_DataBase\02_QVD_DB\01_Dictionary\rate_2.qvd (qvd);
+
+drop table dateForExExist;
+
+SDRrates:
+NoConcatenate
+load exrate_date as exrate_date_SDR
+Resident dateForEXrate
+where date(exrate_date) <= MakeDate(2017, 02, 01)
+;
+
+
+XDRrates:
+NoConcatenate
+load exrate_date as exrate_date_XDR
+Resident dateForEXrate
+where date(exrate_date) > MakeDate(2017, 02, 01)
+;
+
+drop table dateForEXrate;
+
+//load exchange rate
+
+sub getCurrency(FieldName)
+
+LIB CONNECT TO 'ExchangeRatesByDateByISO';
+
+For each vDate in FieldValueList('$(FieldName)')
+
+trace 'Date = '$(vDate);
+
+SET vBODY = <?xml version=""1.0"" encoding=""utf-8""?><soap:Envelope xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/""><soap:Body><ExchangeRatesByDateByISO xmlns=""***""><date>$(vDate)</date><ISO>$(vISO)</ISO></ExchangeRatesByDateByISO></soap:Body></soap:Envelope>;
+
+RestConnectorMasterTable:
+SQL SELECT 
+	"__KEY_Envelope",
+	(SELECT 
+		(SELECT 
+			(SELECT 
+				"CurrentDate",
+				"NextAvailableDate",
+				"PreviousAvailableDate",
+				"__KEY_ExchangeRatesByDateByISOResult",
+				"__FK_ExchangeRatesByDateByISOResult",
+				(SELECT 
+					"__KEY_Rates",
+					"__FK_Rates",
+					(SELECT 
+						"ISO",
+						"Amount",
+						"Rate",
+						"Difference",
+						"__FK_ExchangeRate"
+					FROM "ExchangeRate" FK "__FK_ExchangeRate")
+				FROM "Rates" PK "__KEY_Rates" FK "__FK_Rates")
+			FROM "ExchangeRatesByDateByISOResult" PK "__KEY_ExchangeRatesByDateByISOResult" FK "__FK_ExchangeRatesByDateByISOResult")
+		FROM "ExchangeRatesByDateByISOResponse" PK "__KEY_ExchangeRatesByDateByISOResponse" FK "__FK_ExchangeRatesByDateByISOResponse")
+	FROM "Body" PK "__KEY_Body" FK "__FK_Body")
+FROM XML "Envelope" PK "__KEY_Envelope"
+WITH CONNECTION (BODY "$(vBODY)");
+
+
+
+[ExchangeRate]:
+LOAD	[ISO] AS [ISO],
+	[Amount] AS [Amount],
+	[Rate] AS [Rate],
+	Date(Date#('$(vDate)', '$(DateFormatEX)'), '$(DateFormat)') as exrate_date_tmp,
+    Date(Date#('$(vDate)', '$(DateFormatEX)'), '$(DateFormat)') as exrate_date
+RESIDENT RestConnectorMasterTable
+WHERE NOT IsNull([__FK_ExchangeRate]);
+
+DROP TABLE RestConnectorMasterTable;
+
+if not isnull(FileSize('lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/ExchangeRate.qvd')) then
+Concatenate(ExchangeRate)
+LOAD
+    ISO,
+    Amount,
+    "Rate",
+    exrate_date
+FROM [lib://ProZorroARMData/01_DataBase\02_QVD_DB\01_Dictionary\ExchangeRate.qvd]
+(qvd)
+where not exists(exrate_date_tmp, exrate_date)
+;
+ENDIF;
+
+drop field exrate_date_tmp from ExchangeRate;
+
+store ExchangeRate into lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/ExchangeRate.qvd (qvd);
+
+drop table ExchangeRate;
+
+next vDate;
+Endsub;
+
+//call procedures
+if $(SDRRowno) >0 then 
+SET vISO = SDR;
+call getCurrency('exrate_date_SDR');
+endif;
+
+if $(XDRRowno) >0 then 
+SET vISO = XDR;
+call getCurrency('exrate_date_XDR');
+endif;
+
+drop tables SDRrates, XDRrates;
+
+
+////CPV and GPA dics
+
+
+CPV:
+LOAD
+    "CPV Code",
+    CPVName,
+    CPV_and_Name,
+    CPV,
+    BranchMaxLength,
+    Codelength,
+    Gap,
+    "Parent _CPV",
+    CPV2,
+    CPV3,
+    CPV4,
+    CPV5,
+    CPV6,
+    CPV7,
+    CPV8,
+    GSW
+FROM [lib://ProZorro ARM CPV]
+(html, utf8, embedded labels, table is @1);
+
+left join(CPV)
+LOAD
+    F1 as "CPV Code",
+    F2 as CPVNameEn
+FROM [lib://CPVEN]
+(html, utf8, embedded labels, table is @1);
+
+Store CPV into lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/CPV.qvd (qvd);
+
+drop table CPV;
+
+OrganizersGPA:
+LOAD
+    PurgeChar(F1, ' ') as ID,
+    F2 as [Name EN],
+    F3 as [Name AM],
+    F4 as [Name Ru],
+    F5 as Annex,
+    F6 as [Sub-Annex Type]
+FROM [lib://ProZorro ARM organizers]
+(html, utf8, embedded labels, table is @1)
+where RecNo() <> 1
+;
+
+Store OrganizersGPA into lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/OrganizersGPA.qvd (qvd);
+
+drop table OrganizersGPA;
+
+CPV:
+LOAD
+    F1 as IDCPVEn,
+    F2 as CPV_NameEn,
+    F3 as CPV_codeEn
+FROM [lib://CPVEN]
+(html, utf8, embedded labels, table is @1)
+where F1 <> 1
+;
+
+store CPV into lib://ProZorroARMData/01_DataBase/02_QVD_DB/01_Dictionary/CPVEN.qvd (qvd);
+
+drop table CPV;
+
+
+////exit script
+
+
+exit Script;
